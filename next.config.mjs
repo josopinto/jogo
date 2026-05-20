@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 
-const repo = 'jogo'
+const repo = 'Encerramento'
 
 const nextConfig = {
   output: 'export',
