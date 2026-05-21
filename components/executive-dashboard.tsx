@@ -60,7 +60,7 @@ const PROBLEM_COLORS = {
 }
 
 export function ExecutiveDashboard() {
-  const { routes } = useCCO()
+  const { routes, hasImportedData, dataReferencia } = useCCO()
   const [selectedCell, setSelectedCell] = useState<CellNumber | 'all'>('all')
   const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({
     start: null,
@@ -74,7 +74,7 @@ export function ExecutiveDashboard() {
     return filtered
   }, [routes, selectedCell, dateRange])
 
-  const summary = useMemo(() => calculateGlobalSummary(filteredRoutes), [filteredRoutes])
+  const summary = useMemo(() => calculateGlobalSummary(filteredRoutes, dataReferencia), [filteredRoutes, dataReferencia])
   const worstOperations = useMemo(() => getWorstOperations(filteredRoutes, 10), [filteredRoutes])
 
   // Dados para grafico de barras empilhadas por planta
@@ -223,7 +223,21 @@ export function ExecutiveDashboard() {
         </div>
       </div>
 
-      {/* KPI Cards - Principal */}
+      {!hasImportedData ? (
+        <Card className="bg-card border-border">
+          <CardContent className="py-16">
+            <div className="text-center">
+              <svg className="w-16 h-16 mx-auto text-muted-foreground mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p className="text-muted-foreground text-lg mb-2">Nenhum arquivo importado</p>
+              <p className="text-muted-foreground text-sm">Faca upload dos dados do KMM na aba Upload para visualizar o dashboard executivo.</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* KPI Cards - Principal */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card className="bg-card border-border col-span-1 md:col-span-2 lg:col-span-1 relative overflow-hidden">
           <div className={`absolute inset-0 opacity-10 ${summary.percentualEncerramento >= 95 ? 'bg-success' : summary.percentualEncerramento >= 90 ? 'bg-warning' : 'bg-danger'}`} />
@@ -598,6 +612,8 @@ export function ExecutiveDashboard() {
           </CardContent>
         </Card>
       </div>
+      </>
+      )}
     </div>
   )
 }

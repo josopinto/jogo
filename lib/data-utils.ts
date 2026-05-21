@@ -1,7 +1,43 @@
 // Utilitários de processamento de dados do BI CCO
 import { type Route, type PlantSummary, type CellSummary, type GlobalSummary, type CellNumber } from './types'
 
-export function calculatePlantSummary(routes: Route[], planta: string, celula: CellNumber): PlantSummary {
+/**
+ * Verifica se uma rota é um "regresso antigo" (status Regresso com data diferente da referência)
+ */
+export function isRegressoAntigo(route: Route, dataReferencia: string | null): boolean {
+  if (route.status !== 'Regresso') return false
+  if (!dataReferencia) return false
+  
+  // Extrai data da rota do campo inicio
+  const routeDateStr = route.inicio?.split(' ')[0]
+  if (!routeDateStr) return false
+  
+  // Compara com data de referência (formato YYYY-MM-DD ou DD/MM/YYYY)
+  let routeDate: string
+  if (routeDateStr.includes('/')) {
+    // Formato DD/MM/YYYY
+    const parts = routeDateStr.split('/')
+    routeDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
+  } else {
+    routeDate = routeDateStr
+  }
+  
+  return routeDate !== dataReferencia
+}
+
+/**
+ * Verifica se uma rota é pendente (não encerrada ou regresso antigo)
+ * Rotas pendentes: Em execução, Com Pendências, Previsto, e Regresso antigo
+ */
+export function isRotaPendente(route: Route, dataReferencia: string | null): boolean {
+  if (route.status === 'Encerrado') return false
+  if (route.status === 'Regresso') {
+    return isRegressoAntigo(route, dataReferencia)
+  }
+  return ['Em execução', 'Com Pendências', 'Previsto'].includes(route.status)
+}
+
+export function calculatePlantSummary(routes: Route[], planta: string, celula: CellNumber, dataReferencia: string | null = null): PlantSummary {
   const plantRoutes = routes.filter(r => r.planta === planta && r.celula === celula)
   
   const encerradas = plantRoutes.filter(r => r.status === 'Encerrado').length
@@ -25,11 +61,12 @@ export function calculatePlantSummary(routes: Route[], planta: string, celula: C
     kmMenos: plantRoutes.filter(r => r.kmStatus === 'Rodado a menos').length,
     litrosColetados: plantRoutes.reduce((sum, r) => sum + r.litrosColetados, 0),
     litrosDescarregados: plantRoutes.reduce((sum, r) => sum + r.litrosDescarregados, 0),
-    semContraLeite: plantRoutes.filter(r => r.litrosDescarregados === 0 && r.status === 'Encerrado').length
+    // Sem contra leite: apenas rotas com litrosDescarregados = 0 (não depende do status)
+    semContraLeite: plantRoutes.filter(r => r.litrosDescarregados === 0).length
   }
 }
 
-export function calculateCellSummary(routes: Route[], celula: CellNumber): CellSummary {
+export function calculateCellSummary(routes: Route[], celula: CellNumber, dataReferencia: string | null = null): CellSummary {
   const cellRoutes = routes.filter(r => r.celula === celula)
   const plantas = [...new Set(cellRoutes.map(r => r.planta))]
   
@@ -52,16 +89,20 @@ export function calculateCellSummary(routes: Route[], celula: CellNumber): CellS
     kmMais: cellRoutes.filter(r => r.kmStatus === 'Rodado a mais').length,
     kmMenos: cellRoutes.filter(r => r.kmStatus === 'Rodado a menos').length,
     litrosColetados: cellRoutes.reduce((sum, r) => sum + r.litrosColetados, 0),
-    plantas: plantas.map(p => calculatePlantSummary(cellRoutes, p, celula))
+    plantas: plantas.map(p => calculatePlantSummary(cellRoutes, p, celula, dataReferencia))
   }
 }
 
-export function calculateGlobalSummary(routes: Route[]): GlobalSummary {
+export function calculateGlobalSummary(routes: Route[], dataReferencia: string | null = null): GlobalSummary {
   const encerradas = routes.filter(r => r.status === 'Encerrado').length
   const pendencias = routes.filter(r => r.status === 'Com Pendências').length
   const emExecucao = routes.filter(r => r.status === 'Em execução').length
   const previsto = routes.filter(r => r.status === 'Previsto').length
   const regresso = routes.filter(r => r.status === 'Regresso').length
+  
+  // Rotas pendentes: Em execução + Com Pendências + Previsto + Regresso antigo
+  const regressoAntigo = routes.filter(r => isRegressoAntigo(r, dataReferencia)).length
+  const totalPendentes = pendencias + emExecucao + previsto + regressoAntigo
   
   return {
     totalRotas: routes.length,
@@ -75,9 +116,11 @@ export function calculateGlobalSummary(routes: Route[]): GlobalSummary {
     kmMais: routes.filter(r => r.kmStatus === 'Rodado a mais').length,
     kmMenos: routes.filter(r => r.kmStatus === 'Rodado a menos').length,
     litrosColetados: routes.reduce((sum, r) => sum + r.litrosColetados, 0),
-    semContraLeite: routes.filter(r => r.litrosDescarregados === 0 && r.status === 'Encerrado').length,
+    // Sem contra leite: apenas rotas com litrosDescarregados = 0 (independente do status)
+    semContraLeite: routes.filter(r => r.litrosDescarregados === 0).length,
+    // KM incorreto: Rodado a mais OU Rodado a menos (mesmo em rotas encerradas)
     kmIncorreto: routes.filter(r => r.kmStatus !== 'OK').length,
-    cells: [1, 2, 3].map(c => calculateCellSummary(routes, c as CellNumber))
+    cells: [1, 2, 3].map(c => calculateCellSummary(routes, c as CellNumber, dataReferencia))
   }
 }
 

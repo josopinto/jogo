@@ -30,12 +30,12 @@ const CELL_DESCRIPTIONS: Record<CellNumber, string> = {
 }
 
 export function CellDetailTab() {
-  const { routes } = useCCO()
+  const { routes, hasImportedData, dataReferencia } = useCCO()
   const [selectedCell, setSelectedCell] = useState<CellNumber>(1)
 
   const cellSummary = useMemo(() => {
-    return calculateCellSummary(routes, selectedCell)
-  }, [routes, selectedCell])
+    return calculateCellSummary(routes, selectedCell, dataReferencia)
+  }, [routes, selectedCell, dataReferencia])
 
   // Dados para gráfico de barras horizontais do ranking
   const rankingData = useMemo(() => {
@@ -75,7 +75,33 @@ export function CellDetailTab() {
         </Select>
       </div>
 
-      {/* KPIs da Célula */}
+      {!hasImportedData ? (
+        <Card className="bg-card border-border">
+          <CardContent className="py-16">
+            <div className="text-center">
+              <svg className="w-16 h-16 mx-auto text-muted-foreground mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p className="text-muted-foreground text-lg mb-2">Nenhum arquivo importado</p>
+              <p className="text-muted-foreground text-sm">Faca upload dos dados do KMM na aba Upload para visualizar os dados por celula.</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : cellSummary.totalRotas === 0 ? (
+        <Card className="bg-card border-border">
+          <CardContent className="py-16">
+            <div className="text-center">
+              <svg className="w-16 h-16 mx-auto text-muted-foreground mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <p className="text-muted-foreground text-lg mb-2">Nenhuma rota encontrada para Celula {selectedCell}</p>
+              <p className="text-muted-foreground text-sm">Importe um arquivo selecionando &quot;Celula {selectedCell}&quot; na aba Upload para visualizar os dados.</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* KPIs da Célula */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
         <Card className="bg-card border-border">
           <CardHeader className="pb-2">
@@ -244,6 +270,8 @@ export function CellDetailTab() {
           </div>
         </CardContent>
       </Card>
+      </>
+      )}
     </div>
   )
 }

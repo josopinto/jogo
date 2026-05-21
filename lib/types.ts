@@ -112,14 +112,29 @@ export interface LegacyActionPlan {
   status: 'Ativo' | 'Em andamento' | 'Concluído'
 }
 
+export interface UploadDiagnostic {
+  fileName: string
+  celula: CellNumber
+  dataReferencia: string
+  linhasLidas: number
+  rotasValidas: number
+  plantasEncontradas: string[]
+  colunasReconhecidas: string[]
+  alertas: string[]
+  timestamp: string
+}
+
 export interface AppState {
   routes: Route[]
   lastUpload: string | null
+  dataReferencia: string | null
   uploadSummary: {
     cell1: number
     cell2: number
     cell3: number
   }
+  uploadDiagnostics: UploadDiagnostic[]
+  hasImportedData: boolean
 }
 
 // Mapeamento de células para operações/plantas

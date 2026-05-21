@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useCCO } from './cco-context'
 import { TabHeader } from './tab-header'
-import { formatNumber } from '@/lib/data-utils'
+import { formatNumber, isRegressoAntigo as checkRegressoAntigo } from '@/lib/data-utils'
 import { type CellNumber, type RouteStatus, type KmStatus } from '@/lib/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -60,7 +60,7 @@ const INITIAL_FILTERS: Filters = {
 type QuickFilter = 'pendentes' | 'semContraLeite' | 'kmErrado' | 'regressoAntigo' | 'criticas' | null
 
 export function OperationalDetailTab() {
-  const { routes } = useCCO()
+  const { routes, dataReferencia, hasImportedData } = useCCO()
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS)
   const [quickFilter, setQuickFilter] = useState<QuickFilter>(null)
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
@@ -83,12 +83,9 @@ export function OperationalDetailTab() {
     return Array.from(placaSet).sort()
   }, [routes])
 
-  // Verifica se a data de regresso e antiga (nao e do dia atual)
-  const isRegressoAntigo = (route: typeof routes[0]) => {
-    if (route.status !== 'Regresso') return false
-    const today = new Date().toISOString().split('T')[0]
-    const routeDate = route.inicio?.split(' ')[0] || ''
-    return routeDate !== today
+  // Verifica se a data de regresso e antiga usando dataReferencia do contexto
+  const isRegressoAntigoLocal = (route: typeof routes[0]) => {
+    return checkRegressoAntigo(route, dataReferencia)
   }
 
   // Rotas filtradas
@@ -103,11 +100,11 @@ export function OperationalDetailTab() {
     } else if (quickFilter === 'kmErrado') {
       result = result.filter(r => r.kmStatus !== 'OK')
     } else if (quickFilter === 'regressoAntigo') {
-      result = result.filter(r => isRegressoAntigo(r))
+      result = result.filter(r => isRegressoAntigoLocal(r))
     } else if (quickFilter === 'criticas') {
       result = result.filter(r => 
         r.status !== 'Encerrado' && 
-        (r.litrosDescarregados === 0 || r.kmStatus !== 'OK' || isRegressoAntigo(r))
+        (r.litrosDescarregados === 0 || r.kmStatus !== 'OK' || isRegressoAntigoLocal(r))
       )
     }
 
@@ -235,13 +232,13 @@ export function OperationalDetailTab() {
       pendentes: routes.filter(r => r.status !== 'Encerrado').length,
       semContraLeite: routes.filter(r => r.litrosDescarregados === 0).length,
       kmErrado: routes.filter(r => r.kmStatus !== 'OK').length,
-      regressoAntigo: routes.filter(r => isRegressoAntigo(r)).length,
+      regressoAntigo: routes.filter(r => isRegressoAntigoLocal(r)).length,
       criticas: routes.filter(r => 
         r.status !== 'Encerrado' && 
-        (r.litrosDescarregados === 0 || r.kmStatus !== 'OK' || isRegressoAntigo(r))
+        (r.litrosDescarregados === 0 || r.kmStatus !== 'OK' || isRegressoAntigoLocal(r))
       ).length
     }
-  }, [routes])
+  }, [routes, dataReferencia])
 
   // Verifica se ha filtros ativos
   const hasActiveFilters = useMemo(() => {
@@ -332,7 +329,7 @@ export function OperationalDetailTab() {
   }
 
   const getRowClassName = (route: typeof routes[0]) => {
-    if (route.status !== 'Encerrado' && (route.litrosDescarregados === 0 || isRegressoAntigo(route))) {
+    if (route.status !== 'Encerrado' && (route.litrosDescarregados === 0 || isRegressoAntigoLocal(route))) {
       return 'bg-danger/15 border-l-4 border-l-danger'
     }
     if (route.status !== 'Encerrado') {
@@ -398,7 +395,7 @@ export function OperationalDetailTab() {
         />
         
         <div className="flex gap-2 flex-wrap">
-          <Button onClick={handleExportCSV} variant="outline" className="border-border">
+          <Button onClick={handleExportCSV} variant="outline" className="border-border" disabled={!hasImportedData}>
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -407,7 +404,21 @@ export function OperationalDetailTab() {
         </div>
       </div>
 
-      {/* Quick Filters */}
+      {!hasImportedData ? (
+        <Card className="bg-card border-border">
+          <CardContent className="py-16">
+            <div className="text-center">
+              <svg className="w-16 h-16 mx-auto text-muted-foreground mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p className="text-muted-foreground text-lg mb-2">Nenhum arquivo importado</p>
+              <p className="text-muted-foreground text-sm">Faca upload dos dados do KMM na aba Upload para visualizar o detalhamento.</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Quick Filters */}
       <div className="flex flex-wrap gap-2">
         <Button
           variant={quickFilter === 'pendentes' ? 'default' : 'outline'}
@@ -817,6 +828,8 @@ export function OperationalDetailTab() {
           <span>KM incorreto</span>
         </div>
       </div>
+      </>
+      )}
     </div>
   )
 }
