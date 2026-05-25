@@ -50,7 +50,7 @@ const INITIAL_FILTERS: Filters = {
 }
 
 export function OperationalDetailTab() {
-  const { routes, referenceDate, auditPeriod } = useCCO()
+  const { routes, referenceDate, auditPeriod, setAuditPeriod } = useCCO()
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS)
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [searchGlobal, setSearchGlobal] = useState('')
@@ -59,12 +59,10 @@ export function OperationalDetailTab() {
 
   // --- HOOKS ---
 
-  // 1. Filtrar rotas pelo período de auditoria (Base de Trabalho)
   const routesInAudit = useMemo(() => {
     return filterRoutesByAuditPeriod(routes, auditPeriod.start, auditPeriod.end)
   }, [routes, auditPeriod])
 
-  // Lista de plantas e placas disponíveis na auditoria atual
   const plantas = useMemo(() => {
     const set = new Set(routesInAudit.map(r => r.planta))
     return Array.from(set).sort()
@@ -75,7 +73,6 @@ export function OperationalDetailTab() {
     return Array.from(set).sort()
   }, [routesInAudit])
 
-  // 2. Aplicar filtros de busca e seleção
   const filteredRoutes = useMemo(() => {
     let result = routesInAudit
 
@@ -100,10 +97,10 @@ export function OperationalDetailTab() {
       }
     }
     if (filters.roteiro) {
-      result = result.filter(r => r.roteiro.toLowerCase().includes(filters.roteiro.toLowerCase()))
+      result = result.filter(r => (r.roteiro || '').toLowerCase().includes(filters.roteiro.toLowerCase()))
     }
     if (filters.observacao) {
-      result = result.filter(r => r.observacao.toLowerCase().includes(filters.observacao.toLowerCase()))
+      result = result.filter(r => (r.observacao || '').toLowerCase().includes(filters.observacao.toLowerCase()))
     }
     if (filters.placa !== 'all') {
       result = result.filter(r => r.placa === filters.placa)
@@ -112,17 +109,16 @@ export function OperationalDetailTab() {
     if (searchGlobal) {
       const s = searchGlobal.toLowerCase()
       result = result.filter(r => 
-        r.planta.toLowerCase().includes(s) || 
-        r.roteiro.toLowerCase().includes(s) || 
-        r.placa.toLowerCase().includes(s) || 
-        r.observacao.toLowerCase().includes(s)
+        (r.planta || '').toLowerCase().includes(s) || 
+        (r.roteiro || '').toLowerCase().includes(s) || 
+        (r.placa || '').toLowerCase().includes(s) || 
+        (r.observacao || '').toLowerCase().includes(s)
       )
     }
 
     return result
   }, [routesInAudit, filters, searchGlobal, referenceDate])
 
-  // Paginacao
   const paginatedRoutes = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage
     return filteredRoutes.slice(start, start + itemsPerPage)
@@ -156,7 +152,7 @@ export function OperationalDetailTab() {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
-    link.download = `auditoria_detalhada_${auditPeriod.start}.csv`
+    link.download = `detalhamento_operacional_${auditPeriod.start}.csv`
     link.click()
   }
 
@@ -164,205 +160,288 @@ export function OperationalDetailTab() {
     const pendente = isPendente(r, referenceDate)
     const critico = pendente && (isSemContraLeite(r) || isKmStatusIncorreto(r) || isRegressoAntigo(r, referenceDate))
     
-    if (critico) return 'bg-danger/20 border-l-4 border-l-danger'
-    if (pendente) return 'bg-danger/5'
+    if (critico) return 'bg-error-container/20 border-l-4 border-l-error'
+    if (pendente) return 'bg-error-container/5'
     if (isSemContraLeite(r) && r.status === 'Encerrado') return 'bg-warning/10'
     return ''
   }
 
-  if (routes.length === 0) {
+  const isEmpty = routes.length === 0
+
+  if (isEmpty) {
     return (
       <div className="flex flex-col items-center justify-center h-80 text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
-          <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-          </svg>
+        <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center shadow-surface">
+          <span className="material-symbols-outlined text-outline text-3xl">list_alt</span>
         </div>
         <div>
-          <h2 className="text-xl font-semibold">Nenhum dado para detalhamento</h2>
-          <p className="text-muted-foreground">Importe os arquivos do KMM para navegar pelas rotas.</p>
+          <h2 className="text-xl font-bold text-on-surface">Nenhum dado consolidado</h2>
+          <p className="text-on-surface-variant">Importe os arquivos do KMM para navegar pelas rotas.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-lg">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <TabHeader 
-          title="Detalhamento Operacional" 
-          description="Visualizacao linha a linha da auditoria selecionada"
-        />
-        <Button onClick={handleExportCSV} variant="outline" className="border-border">
-          Exportar CSV
+        <div>
+          <h2 className="font-display-lg text-display-lg text-on-surface tracking-tight">Gestão de Operações</h2>
+          <p className="font-body-lg text-body-lg text-on-surface-variant">Detalhamento e filtros avançados para auditoria.</p>
+        </div>
+        <Button onClick={handleExportCSV} variant="outline" className="border-outline-variant text-secondary hover:text-primary">
+          <span className="material-symbols-outlined mr-2">download</span> Exportar CSV
         </Button>
       </div>
 
-      <Card className="bg-card border-border">
-        <CardContent className="pt-6 space-y-4">
-           <div className="grid gap-4 md:grid-cols-4">
-              <div className="relative md:col-span-2">
-                <Input
-                  placeholder="Busca rapida (planta, roteiro, placa...)"
-                  value={searchGlobal}
-                  onChange={(e) => { setSearchGlobal(e.target.value); setCurrentPage(1) }}
-                  className="bg-secondary border-border pl-10"
-                />
-                <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
+      {/* Filter Section Card */}
+      <section className="bg-surface-container-lowest rounded-xl p-md shadow-surface flex flex-col gap-md border border-outline-variant/30">
+        <div className="flex items-center justify-between pb-sm border-b border-outline-variant/20">
+          <h2 className="font-headline-md text-headline-md text-on-surface flex items-center gap-sm">
+            <span className="material-symbols-outlined text-primary">filter_list</span>
+            Filtros de Operação
+          </h2>
+          <button 
+            onClick={() => { setFilters(INITIAL_FILTERS); setSearchGlobal(''); setCurrentPage(1); }}
+            className="text-secondary hover:text-primary font-label-lg text-label-lg flex items-center gap-xs transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">clear_all</span>
+            Limpar Filtros
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-md">
+          {/* Audit Period Start */}
+          <div className="flex flex-col gap-xs">
+            <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-tighter">Auditoria Início</label>
+            <Input 
+              type="date" 
+              value={auditPeriod.start || ''} 
+              onChange={e => setAuditPeriod(e.target.value, auditPeriod.end)}
+              className="h-10 bg-surface border-outline-variant focus:border-primary text-xs"
+            />
+          </div>
+          {/* Audit Period End */}
+          <div className="flex flex-col gap-xs">
+            <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-tighter">Auditoria Fim</label>
+            <Input 
+              type="date" 
+              value={auditPeriod.end || ''} 
+              onChange={e => setAuditPeriod(auditPeriod.start, e.target.value)}
+              className="h-10 bg-surface border-outline-variant focus:border-primary text-xs"
+            />
+          </div>
+          {/* Cell */}
+          <div className="flex flex-col gap-xs">
+            <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-tighter">Célula</label>
+            <Select value={filters.celula.toString()} onValueChange={(v) => { setFilters(p => ({ ...p, celula: v === 'all' ? 'all' : Number(v) as CellNumber })); setCurrentPage(1) }}>
+              <SelectTrigger className="h-10 bg-surface border-outline-variant text-xs">
+                <SelectValue placeholder="Todas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Células</SelectItem>
+                <SelectItem value="1">Célula 1</SelectItem>
+                <SelectItem value="2">Célula 2</SelectItem>
+                <SelectItem value="3">Célula 3</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Status */}
+          <div className="flex flex-col gap-xs">
+            <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-tighter">Status</label>
+            <Select value={filters.status} onValueChange={(v) => { setFilters(p => ({ ...p, status: v as FilterStatus })); setCurrentPage(1) }}>
+              <SelectTrigger className="h-10 bg-surface border-outline-variant text-xs">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos Status</SelectItem>
+                <SelectItem value="pendente">Apenas Pendentes</SelectItem>
+                <SelectItem value="Encerrado">Encerrado</SelectItem>
+                <SelectItem value="Em execução">Em Execução</SelectItem>
+                <SelectItem value="Com Pendências">Com Pendências</SelectItem>
+                <SelectItem value="Regresso">Regresso</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Quick Search */}
+          <div className="flex flex-col gap-xs xl:col-span-3">
+            <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-tighter">Busca Rápida</label>
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+              <Input
+                placeholder="Planta, roteiro, placa..."
+                value={searchGlobal}
+                onChange={(e) => { setSearchGlobal(e.target.value); setCurrentPage(1) }}
+                className="h-10 pl-10 bg-surface border-outline-variant focus:border-primary text-xs"
+              />
+            </div>
+          </div>
+        </div>
 
-              <Select value={filters.celula.toString()} onValueChange={(v) => { setFilters(p => ({ ...p, celula: v === 'all' ? 'all' : Number(v) as CellNumber })); setCurrentPage(1) }}>
-                <SelectTrigger className="bg-secondary">
-                  <SelectValue placeholder="Celula" />
+        <button 
+          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          className="text-xs text-primary font-bold hover:underline text-left w-fit"
+        >
+          {showAdvancedFilters ? 'Ocultar Filtros Avançados' : 'Mostrar Filtros Avançados...'}
+        </button>
+
+        {showAdvancedFilters && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-md pt-md border-t border-outline-variant/10">
+            <div className="flex flex-col gap-xs">
+              <label className="font-label-md text-[10px] text-on-surface-variant uppercase">Planta</label>
+              <Select value={filters.planta} onValueChange={(v) => { setFilters(p => ({ ...p, planta: v })); setCurrentPage(1) }}>
+                <SelectTrigger className="h-9 bg-surface text-[11px]">
+                  <SelectValue placeholder="Todas" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas Celulas</SelectItem>
-                  <SelectItem value="1">Celula 1</SelectItem>
-                  <SelectItem value="2">Celula 2</SelectItem>
-                  <SelectItem value="3">Celula 3</SelectItem>
+                  <SelectItem value="all">Todas as Plantas</SelectItem>
+                  {plantas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                 </SelectContent>
               </Select>
-
-              <Select value={filters.status} onValueChange={(v) => { setFilters(p => ({ ...p, status: v as FilterStatus })); setCurrentPage(1) }}>
-                <SelectTrigger className="bg-secondary">
-                  <SelectValue placeholder="Status" />
+            </div>
+            <div className="flex flex-col gap-xs">
+              <label className="font-label-md text-[10px] text-on-surface-variant uppercase">KM Status</label>
+              <Select value={filters.kmStatus} onValueChange={(v) => { setFilters(p => ({ ...p, kmStatus: v as any })); setCurrentPage(1) }}>
+                <SelectTrigger className="h-9 bg-surface text-[11px]">
+                  <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos Status</SelectItem>
-                  <SelectItem value="pendente">Apenas Pendentes</SelectItem>
-                  <SelectItem value="Encerrado">Encerrado</SelectItem>
-                  <SelectItem value="Em execução">Em Execucao</SelectItem>
-                  <SelectItem value="Com Pendências">Com Pendencias</SelectItem>
-                  <SelectItem value="Regresso">Regresso</SelectItem>
+                  <SelectItem value="all">Todos os KMs</SelectItem>
+                  <SelectItem value="incorreto">Apenas Incorretos</SelectItem>
+                  <SelectItem value="OK">Apenas OK</SelectItem>
                 </SelectContent>
               </Select>
-           </div>
-
-           <Button 
-             variant="ghost" 
-             size="sm" 
-             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-             className="text-xs text-muted-foreground"
-           >
-             {showAdvancedFilters ? 'Ocultar Filtros Avancados' : 'Mostrar Filtros Avancados...'}
-           </Button>
-
-           {showAdvancedFilters && (
-             <div className="grid gap-4 md:grid-cols-4 pt-2 border-t border-border">
-                <Select value={filters.planta} onValueChange={(v) => setFilters(p => ({ ...p, planta: v }))}>
-                  <SelectTrigger className="bg-secondary text-xs h-8">
-                    <SelectValue placeholder="Planta" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas Plantas</SelectItem>
-                    {plantas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-
-                <Select value={filters.kmStatus} onValueChange={(v) => setFilters(p => ({ ...p, kmStatus: v as any }))}>
-                  <SelectTrigger className="bg-secondary text-xs h-8">
-                    <SelectValue placeholder="KM Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos KM</SelectItem>
-                    <SelectItem value="incorreto">KM Incorreto</SelectItem>
-                    <SelectItem value="OK">OK</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Input 
-                  placeholder="Roteiro..." 
-                  value={filters.roteiro} 
-                  onChange={e => setFilters(p => ({ ...p, roteiro: e.target.value }))}
-                  className="bg-secondary h-8 text-xs"
-                />
-
-                <Select value={filters.placa} onValueChange={(v) => setFilters(p => ({ ...p, placa: v }))}>
-                  <SelectTrigger className="bg-secondary text-xs h-8">
-                    <SelectValue placeholder="Placa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas Placas</SelectItem>
-                    {placas.map(pl => <SelectItem key={pl} value={pl}>{pl}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-             </div>
-           )}
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Mostrando <strong>{filteredRoutes.length}</strong> rotas na auditoria <strong>{formatDateBR(auditPeriod.start)}</strong></span>
-        {totalPages > 1 && (
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>Anterior</Button>
-            <span className="flex items-center px-2">Pagina {currentPage} de {totalPages}</span>
-            <Button size="sm" variant="outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>Proxima</Button>
+            </div>
+            <div className="flex flex-col gap-xs">
+              <label className="font-label-md text-[10px] text-on-surface-variant uppercase">Placa</label>
+              <Select value={filters.placa} onValueChange={(v) => { setFilters(p => ({ ...p, placa: v })); setCurrentPage(1) }}>
+                <SelectTrigger className="h-9 bg-surface text-[11px]">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as Placas</SelectItem>
+                  {placas.map(pl => <SelectItem key={pl} value={pl}>{pl}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-xs">
+              <label className="font-label-md text-[10px] text-on-surface-variant uppercase">Roteiro</label>
+              <Input 
+                placeholder="Nº Roteiro..." 
+                value={filters.roteiro} 
+                onChange={e => { setFilters(p => ({ ...p, roteiro: e.target.value })); setCurrentPage(1) }}
+                className="h-9 bg-surface text-[11px]"
+              />
+            </div>
           </div>
         )}
-      </div>
+      </section>
 
-      <Card className="bg-card border-border overflow-hidden">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-[11px]">
-              <thead className="bg-secondary/50 border-b border-border">
-                <tr>
-                  <th className="p-3 text-left">Cél.</th>
-                  <th className="p-3 text-left">Planta</th>
-                  <th className="p-3 text-left">Roteiro</th>
-                  <th className="p-3 text-left">Data Rota</th>
-                  <th className="p-3 text-left">Status</th>
-                  <th className="p-3 text-left">KM Status</th>
-                  <th className="p-3 text-right">L.Col.</th>
-                  <th className="p-3 text-right">L.Des.</th>
-                  <th className="p-3 text-left">Placa</th>
-                  <th className="p-3 text-left">Obs</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedRoutes.map((r) => (
-                  <tr key={r.id} className={`border-b border-border/50 hover:bg-secondary/20 transition-colors ${getRowClassName(r)}`}>
-                    <td className="p-3">{r.celula}</td>
-                    <td className="p-3 font-bold">{r.planta}</td>
-                    <td className="p-3 font-mono">{r.roteiro}</td>
-                    <td className="p-3 whitespace-nowrap">{formatDateBR(r.dataRota)}</td>
-                    <td className="p-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${r.status === 'Encerrado' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
-                        {r.status}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      <span className={r.kmStatus !== 'OK' ? 'text-orange font-bold' : ''}>{r.kmStatus}</span>
-                    </td>
-                    <td className="p-3 text-right">{formatNumber(r.litrosColetados)}</td>
-                    <td className="p-3 text-right font-bold">{formatNumber(r.litrosDescarregados)}</td>
-                    <td className="p-3 font-mono">{r.placa}</td>
-                    <td className="p-3 max-w-[150px] truncate" title={r.observacao}>{r.observacao || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Operations Table Card */}
+      <section className="bg-surface-container-lowest rounded-xl shadow-surface flex flex-col flex-1 overflow-hidden border border-outline-variant/30">
+        <div className="h-14 px-md flex items-center justify-between border-b border-outline-variant/20 bg-surface-bright/30 shrink-0">
+          <div className="flex items-center gap-sm">
+            <h3 className="font-headline-md text-headline-md text-on-surface">Detalhamento Operacional</h3>
+            <span className="px-2 py-1 bg-surface-container-high rounded-full font-label-md text-[10px] font-bold text-on-surface-variant uppercase">
+              {filteredRoutes.length} Registros
+            </span>
           </div>
-        </CardContent>
-      </Card>
+          <div className="text-[10px] text-on-surface-variant uppercase font-bold tracking-tighter">
+            Audit Pull: {formatDateBR(auditPeriod.start)}
+          </div>
+        </div>
 
-      <div className="p-4 rounded-lg bg-secondary/20 border border-border space-y-2">
-         <h4 className="text-xs font-bold uppercase text-muted-foreground">Legenda de Destaque:</h4>
-         <div className="flex flex-wrap gap-4 text-[10px]">
-            <div className="flex items-center gap-1.5">
-               <div className="w-3 h-3 bg-danger/20 border-l-2 border-l-danger" />
-               <span>Rota Crítica (Pendente + Divergência de Leite/KM ou Regresso Antigo)</span>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[1200px]">
+            <thead className="sticky top-0 bg-surface-container-lowest shadow-[0_1px_0_0_rgba(0,0,0,0.05)] z-10">
+              <tr className="bg-surface-container-low/50">
+                <th className="h-12 px-md font-label-lg text-label-lg text-on-surface-variant whitespace-nowrap font-bold">Cél.</th>
+                <th className="h-12 px-md font-label-lg text-label-lg text-on-surface-variant whitespace-nowrap font-bold">Planta</th>
+                <th className="h-12 px-md font-label-lg text-label-lg text-on-surface-variant whitespace-nowrap font-bold">Roteiro</th>
+                <th className="h-12 px-md font-label-lg text-label-lg text-on-surface-variant whitespace-nowrap font-bold text-center">Data Rota</th>
+                <th className="h-12 px-md font-label-lg text-label-lg text-on-surface-variant whitespace-nowrap font-bold text-center">Status</th>
+                <th className="h-12 px-md font-label-lg text-label-lg text-on-surface-variant whitespace-nowrap font-bold text-center">KM Status</th>
+                <th className="h-12 px-md font-label-lg text-label-lg text-on-surface-variant text-right whitespace-nowrap font-bold">L. Col.</th>
+                <th className="h-12 px-md font-label-lg text-label-lg text-on-surface-variant text-right whitespace-nowrap font-bold">L. Des.</th>
+                <th className="h-12 px-md font-label-lg text-label-lg text-on-surface-variant whitespace-nowrap font-bold">Placa</th>
+                <th className="h-12 px-md font-label-lg text-label-lg text-on-surface-variant whitespace-nowrap font-bold">Observação</th>
+              </tr>
+            </thead>
+            <tbody className="font-body-sm text-body-sm text-on-surface divide-y divide-outline-variant/10">
+              {paginatedRoutes.map((r, idx) => (
+                <tr key={r.id} className={`h-[52px] transition-colors hover:bg-primary/5 group ${idx % 2 !== 0 ? 'bg-surface-bright/10' : ''} ${getRowClassName(r)}`}>
+                  <td className="px-md font-bold text-primary">C{r.celula}</td>
+                  <td className="px-md font-bold text-on-surface truncate max-w-[180px]" title={r.planta}>{r.planta}</td>
+                  <td className="px-md font-mono text-[11px]">{r.roteiro}</td>
+                  <td className="px-md text-center whitespace-nowrap">{formatDateBR(r.dataRota)}</td>
+                  <td className="px-md text-center">
+                    <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-tighter
+                      ${r.status === 'Encerrado' ? 'bg-success/10 text-success' : 'bg-error-container/40 text-on-error-container'}
+                    `}>
+                      {r.status}
+                    </span>
+                  </td>
+                  <td className="px-md text-center">
+                    <span className={`font-bold ${r.kmStatus !== 'OK' ? 'text-orange' : 'text-success/80'}`}>
+                      {r.kmStatus}
+                    </span>
+                  </td>
+                  <td className="px-md text-right text-on-surface-variant">{formatNumber(r.litrosColetados)}</td>
+                  <td className="px-md text-right font-black text-on-surface">{formatNumber(r.litrosDescarregados)}</td>
+                  <td className="px-md font-mono">{r.placa}</td>
+                  <td className="px-md max-w-[200px] truncate text-[10px] text-on-surface-variant italic" title={r.observacao}>{r.observacao || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="h-14 px-md flex items-center justify-between border-t border-outline-variant/20 bg-surface-container-low/30 shrink-0">
+          <span className="font-body-sm text-[11px] text-on-surface-variant font-medium">Mostrando {paginatedRoutes.length} de {filteredRoutes.length} rotas filtradas</span>
+          <div className="flex items-center gap-sm">
+            <Button size="sm" variant="ghost" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="h-8 w-8 p-0">
+              <span className="material-symbols-outlined">chevron_left</span>
+            </Button>
+            <div className="flex items-center gap-1 font-mono text-xs">
+              <span className="bg-primary text-on-primary px-2 py-0.5 rounded font-bold">{currentPage}</span>
+              <span className="text-on-surface-variant">/</span>
+              <span className="text-on-surface-variant">{totalPages || 1}</span>
             </div>
-            <div className="flex items-center gap-1.5">
-               <div className="w-3 h-3 bg-danger/5" />
-               <span>Rota Pendente / Em Execução</span>
+            <Button size="sm" variant="ghost" disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(p => p + 1)} className="h-8 w-8 p-0">
+              <span className="material-symbols-outlined">chevron_right</span>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Legend Block */}
+      <div className="p-lg rounded-xl bg-surface-container-low/50 border border-outline-variant/20 space-y-md">
+         <h4 className="font-label-lg text-label-lg font-bold uppercase text-on-surface-variant tracking-widest flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px]">legend_toggle</span>
+            Legenda de Destaque Operacional
+         </h4>
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-lg">
+            <div className="flex items-start gap-3 p-md rounded-lg bg-surface-container-lowest border border-outline-variant/10 shadow-sm">
+               <div className="w-4 h-full bg-error-container/30 border-l-4 border-l-error shrink-0 rounded" />
+               <div>
+                  <p className="font-bold text-xs text-error uppercase">Rota Crítica</p>
+                  <p className="text-[10px] text-on-surface-variant leading-tight mt-1">Status Pendente + Divergência de Leite (SCL), KM Incorreto ou Regresso Antigo.</p>
+               </div>
             </div>
-            <div className="flex items-center gap-1.5">
-               <div className="w-3 h-3 bg-warning/10" />
-               <span>Encerrada sem Contra Leite (Litros Descarregados = 0)</span>
+            <div className="flex items-start gap-3 p-md rounded-lg bg-surface-container-lowest border border-outline-variant/10 shadow-sm">
+               <div className="w-4 h-full bg-error-container/10 shrink-0 rounded" />
+               <div>
+                  <p className="font-bold text-xs text-on-surface-variant uppercase">Pendente / Em Execução</p>
+                  <p className="text-[10px] text-on-surface-variant leading-tight mt-1">Rota em andamento no KMM sem outras inconsistências críticas identificadas.</p>
+               </div>
+            </div>
+            <div className="flex items-start gap-3 p-md rounded-lg bg-surface-container-lowest border border-outline-variant/10 shadow-sm">
+               <div className="w-4 h-full bg-warning/10 shrink-0 rounded" />
+               <div>
+                  <p className="font-bold text-xs text-warning uppercase">S.C. Leite (Encerrada)</p>
+                  <p className="text-[10px] text-on-surface-variant leading-tight mt-1">Rota encerrada no KMM porém sem registro de litros descarregados (Canhoto).</p>
+               </div>
             </div>
          </div>
       </div>

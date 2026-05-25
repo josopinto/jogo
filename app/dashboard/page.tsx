@@ -22,64 +22,14 @@ type TabId = 'upload' | 'summary' | 'executive' | 'cell' | 'operational' | 'acti
 interface Tab {
   id: TabId
   label: string
-  icon: React.ReactNode
+  icon: string
 }
 
-const tabs: Tab[] = [
-  { 
-    id: 'upload', 
-    label: 'Upload', 
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-      </svg>
-    )
-  },
-  { 
-    id: 'summary', 
-    label: 'Resumo', 
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    )
-  },
-  { 
-    id: 'executive', 
-    label: 'Visao Geral', 
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    )
-  },
-  { 
-    id: 'cell', 
-    label: 'Por Celula', 
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-      </svg>
-    )
-  },
-  { 
-    id: 'operational', 
-    label: 'Detalhamento', 
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-      </svg>
-    )
-  },
-  { 
-    id: 'action', 
-    label: 'Plano de Acao', 
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    )
-  }
+const mainTabs: Tab[] = [
+  { id: 'summary', label: 'Executive Summary', icon: 'dashboard' },
+  { id: 'cell', label: 'Cell Analysis', icon: 'analytics' },
+  { id: 'executive', label: 'Operations Management', icon: 'settings_suggest' },
+  { id: 'upload', label: 'Upload/Action Plan', icon: 'cloud_upload' },
 ]
 
 function DashboardContent() {
@@ -104,114 +54,137 @@ function DashboardContent() {
   const pendentesTotal = summary.pendencias
 
   return (
-    <div className="dark min-h-screen bg-background text-foreground">
-      {/* Header Principal */}
-      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-foreground">CCO BI - Auditoria Operacional</h1>
-                <p className="text-xs text-muted-foreground">VIA Group - Transporte de Leite e Agronegocios</p>
-              </div>
-            </div>
-            
-            {/* KPIs Resumidos no Header */}
-            <div className="hidden lg:flex items-center gap-4">
-              <div className="flex flex-col items-end mr-4 border-r border-border pr-4">
-                 <span className="text-[10px] font-bold text-muted-foreground uppercase">Auditoria Ativa</span>
-                 <span className="text-xs font-mono font-bold text-primary">{formatDateBR(auditPeriod.start)} ate {formatDateBR(auditPeriod.end)}</span>
-              </div>
-
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
-                <span className="text-xs text-muted-foreground">Encerramento:</span>
-                <span className={`text-sm font-bold ${summary.percentualEncerramento >= 95 ? 'text-success' : 'text-danger'}`}>
-                  {formatPercentage(summary.percentualEncerramento)}
-                </span>
-              </div>
-              
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
-                <span className="text-xs text-muted-foreground">Pendentes:</span>
-                <span className="text-sm font-bold text-danger">{formatNumber(summary.pendencias)}</span>
-              </div>
-
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
-                <span className="text-xs text-muted-foreground">S.C. Leite*:</span>
-                <span className="text-sm font-bold text-warning">{formatNumber(indicatorStats.semContraLeite)}</span>
-              </div>
-            </div>
+    <div className="flex min-h-screen bg-surface text-on-surface antialiased">
+      {/* SideNavBar Component */}
+      <nav className="fixed left-0 top-0 h-screen w-64 flex-col p-md z-40 bg-surface-container-low border-r border-outline-variant hidden md:flex">
+        <div className="flex items-center gap-sm mb-xl mt-sm">
+          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center overflow-hidden shrink-0">
+            <span className="material-symbols-outlined text-on-primary">corporate_fare</span>
+          </div>
+          <div className="flex flex-col overflow-hidden">
+            <span className="font-headline-md text-headline-md text-primary truncate leading-tight">VIA Group CCO</span>
+            <span className="font-label-md text-label-md text-on-surface-variant truncate">Operational Oversight</span>
           </div>
         </div>
-      </header>
-
-      {/* Navigation Tabs com Indicadores */}
-      <div className="border-b border-border bg-card">
-        <div className="container mx-auto px-4">
-          <nav className="flex gap-1 overflow-x-auto py-2" aria-label="Tabs">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap
-                  ${activeTab === tab.id 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                  }`}
-              >
+        
+        <div className="flex flex-col gap-xs flex-grow">
+          {mainTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-md px-3 py-2.5 rounded-lg transition-all duration-200 ease-in-out text-left
+                ${activeTab === tab.id 
+                  ? 'bg-primary-fixed-dim text-primary font-bold' 
+                  : 'text-on-surface-variant hover:bg-surface-container-high hover:text-primary'
+                }`}
+            >
+              <span className={`material-symbols-outlined shrink-0 ${activeTab === tab.id ? 'fill-current' : ''}`}>
                 {tab.icon}
-                {tab.label}
-              </button>
-            ))}
-          </nav>
+              </span>
+              <span className="font-label-lg text-label-lg truncate">{tab.label}</span>
+            </button>
+          ))}
+          
+          <button
+            onClick={() => setActiveTab('operational')}
+            className={`flex items-center gap-md px-3 py-2.5 rounded-lg transition-all duration-200 ease-in-out text-left
+              ${activeTab === 'operational' 
+                ? 'bg-primary-fixed-dim text-primary font-bold' 
+                : 'text-on-surface-variant hover:bg-surface-container-high hover:text-primary'
+              }`}
+          >
+            <span className={`material-symbols-outlined shrink-0 ${activeTab === 'operational' ? 'fill-current' : ''}`}>
+              list_alt
+            </span>
+            <span className="font-label-lg text-label-lg truncate">Detalhamento</span>
+          </button>
         </div>
-      </div>
-      
-      {/* Barra de Status Rapido - Mobile */}
-      <div className="lg:hidden border-b border-border bg-secondary/30 px-4 py-2">
-        <div className="container mx-auto flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${summary.percentualEncerramento >= 95 ? 'bg-success' : summary.percentualEncerramento >= 90 ? 'bg-warning' : 'bg-danger animate-pulse'}`} />
-            <span className={`font-bold ${summary.percentualEncerramento >= 95 ? 'text-success' : summary.percentualEncerramento >= 90 ? 'text-warning' : 'text-danger'}`}>
-              {formatPercentage(summary.percentualEncerramento)}
+
+        <div className="flex flex-col gap-xs pt-md mt-auto border-t border-outline-variant">
+          <a className="flex items-center gap-md px-3 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all hover:bg-surface-container-highest duration-200 ease-in-out" href="#">
+            <span className="material-symbols-outlined shrink-0">settings</span>
+            <span className="font-label-lg text-label-lg truncate">Settings</span>
+          </a>
+          <a className="flex items-center gap-md px-3 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all hover:bg-surface-container-highest duration-200 ease-in-out" href="#">
+            <span className="material-symbols-outlined shrink-0">contact_support</span>
+            <span className="font-label-lg text-label-lg truncate">Support</span>
+          </a>
+        </div>
+      </nav>
+
+      {/* Main Content Wrapper */}
+      <div className="flex-1 flex flex-col md:ml-64 relative min-h-screen">
+        {/* TopNavBar Component */}
+        <header className="fixed top-0 right-0 left-0 md:left-64 z-30 flex items-center justify-between px-gutter h-16 bg-surface-container-lowest border-b border-outline-variant shadow-sm">
+          <div className="flex items-center md:hidden gap-2">
+            <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-on-primary">
+              <span className="material-symbols-outlined text-sm">corporate_fare</span>
+            </div>
+            <h1 className="font-headline-md text-primary font-bold">VIA Group CCO</h1>
+          </div>
+          
+          <div className="hidden md:flex flex-col">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Auditoria Ativa</span>
+            <span className="text-sm font-mono font-bold text-primary">
+              {formatDateBR(auditPeriod.start)} ate {formatDateBR(auditPeriod.end)}
             </span>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-muted-foreground">Total: <strong className="text-foreground">{formatNumber(summary.totalRotas)}</strong></span>
-            <span className="text-muted-foreground">Pend: <strong className="text-danger">{formatNumber(pendentesTotal)}</strong></span>
-          </div>
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
-        {activeTab === 'upload' && <UploadTab />}
-        {activeTab === 'summary' && <SummaryTab />}
-        {activeTab === 'executive' && <ExecutiveDashboard />}
-        {activeTab === 'cell' && <CellDetailTab />}
-        {activeTab === 'operational' && <OperationalDetailTab />}
-        {activeTab === 'action' && <ActionPlanTab />}
-      </main>
+          <div className="flex items-center gap-lg">
+            {/* Quick Stats Header */}
+            <div className="hidden lg:flex items-center gap-4 border-r border-outline-variant pr-lg mr-xs">
+               <div className="flex flex-col items-end">
+                  <span className="text-[10px] uppercase font-bold text-on-surface-variant">Encerramento</span>
+                  <span className={`text-sm font-bold ${summary.percentualEncerramento >= 95 ? 'text-success' : 'text-error'}`}>
+                    {formatPercentage(summary.percentualEncerramento)}
+                  </span>
+               </div>
+               <div className="flex flex-col items-end">
+                  <span className="text-[10px] uppercase font-bold text-on-surface-variant">Pendentes</span>
+                  <span className="text-sm font-bold text-error">{formatNumber(pendentesTotal)}</span>
+               </div>
+            </div>
 
-      {/* Footer */}
-      <footer className="border-t border-border bg-card py-4 mt-8">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-            <p>VIA Group - Sistema de BI do CCO - Auditoria Operacional</p>
-            <div className="flex items-center gap-4">
-              <span>Celulas: 3</span>
-              <span>|</span>
-              <span>Operacoes: 28</span>
-              <span>|</span>
-              <span>Rotas: {formatNumber(totalRoutes)}</span>
+            <div className="flex items-center gap-xs">
+              <button className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:scale-95">
+                <span className="material-symbols-outlined">notifications</span>
+              </button>
+              <button className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:scale-95">
+                <span className="material-symbols-outlined">help</span>
+              </button>
+              <div className="w-10 h-10 rounded-full overflow-hidden ml-xs border border-outline-variant cursor-pointer active:scale-95">
+                <img 
+                  alt="Executive User Profile" 
+                  className="w-full h-full object-cover"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFCHM54Ig1vZr-inMdxAH2_eDTUsMsHnFGEMQm621iDfm-KhxJ8eNxEFJdtvVMY-LgIJWs5HjKaq0aBmLtSj37ZD9Eacbho4d6J7lxa-rZ05zLztG-pes_Vc90691-u52nBqRn5alnWieDgFHVw1sC-BMK7dzMGhzNqc5GhwKdOHxd_WTIFZocNW0cl9EFxddxNKJ0pjTdh_ru0HOsEXYyxmlZl2msAhiV8ShPRTFNsuhBgmeVwMEgGS2_bvQOgFM3juZTtf1mnv4"
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </footer>
+        </header>
+
+        {/* Canvas Area */}
+        <main className="flex-1 overflow-y-auto pt-16 px-gutter pb-margin">
+          <div className="max-w-[1600px] mx-auto mt-lg">
+            {activeTab === 'summary' && <SummaryTab />}
+            {activeTab === 'cell' && <CellDetailTab />}
+            {activeTab === 'executive' && <ExecutiveDashboard />}
+            {activeTab === 'upload' && <UploadTab />}
+            {activeTab === 'operational' && <OperationalDetailTab />}
+            {activeTab === 'action' && <ActionPlanTab />}
+          </div>
+        </main>
+        
+        {/* Simple Footer inside main area for branding */}
+        <footer className="mt-auto py-md border-t border-outline-variant/30 flex items-center justify-between text-on-surface-variant px-gutter">
+           <p className="text-xs">VIA Group - Operational BI Dashboard</p>
+           <div className="flex gap-4 text-xs font-mono">
+              <span>Cell: 3</span>
+              <span>Ops: 28</span>
+              <span>Total Rotas: {formatNumber(totalRoutes)}</span>
+           </div>
+        </footer>
+      </div>
     </div>
   )
 }

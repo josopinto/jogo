@@ -9,6 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { formatNumber, normalizeDateToISO, formatDateBR } from '@/lib/data-utils'
 import { Input } from '@/components/ui/input'
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface UploadState {
   cell1: File | null
@@ -18,12 +25,11 @@ interface UploadState {
 
 interface ProcessingStatus {
   isProcessing: boolean
-  cell1: { status: 'idle' | 'processing' | 'done' | 'error'; count: number }
-  cell2: { status: 'idle' | 'processing' | 'done' | 'error'; count: number }
-  cell3: { status: 'idle' | 'processing' | 'done' | 'error'; count: number }
+  cell1: { status: 'idle' | 'processing' | 'done' | 'error'; count: number; plants: number; alerts: number }
+  cell2: { status: 'idle' | 'processing' | 'done' | 'error'; count: number; plants: number; alerts: number }
+  cell3: { status: 'idle' | 'processing' | 'done' | 'error'; count: number; plants: number; alerts: number }
 }
 
-// Mapeador de colunas flexível
 const COLUMN_MAP: Record<string, string[]> = {
   roteiro: ['Roteiro', 'roteiro'],
   status: ['Status', 'status'],
@@ -45,7 +51,7 @@ function parseExcelFile(
   celula: CellNumber, 
   auditStart: string, 
   auditEnd: string
-): Promise<Route[]> {
+): Promise<{ routes: Route[]; plantCount: number; alerts: number }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     
@@ -62,7 +68,7 @@ function parseExcelFile(
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true }) as any[][]
         
         if (jsonData.length < 2) {
-          resolve([])
+          resolve({ routes: [], plantCount: 0, alerts: 0 })
           return
         }
 
@@ -86,6 +92,8 @@ function parseExcelFile(
         }
 
         const routes: Route[] = []
+        const plantSet = new Set<string>()
+        let alerts = 0
         let currentPlanta = ''
         const uploadId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
         
@@ -97,6 +105,7 @@ function parseExcelFile(
           
           if (firstCellValue.toLowerCase().includes('planta:')) {
             currentPlanta = firstCellValue.split(/planta:/i)[1].trim()
+            plantSet.add(currentPlanta)
             continue
           }
           
@@ -114,6 +123,8 @@ function parseExcelFile(
           const rawTermino = idx.termino !== -1 ? row[idx.termino] : null
           
           const dataRotaISO = normalizeDateToISO(rawInicio || rawTermino)
+
+          if (!dataRotaISO) alerts++
 
           routes.push({
             id: `${celula}-${roteiro}-${i}-${uploadId}`,
@@ -150,7 +161,7 @@ function parseExcelFile(
           })
         }
         
-        resolve(routes)
+        resolve({ routes, plantCount: plantSet.size, alerts })
       } catch (error) {
         console.error('Erro no parser:', error)
         reject(error)
@@ -163,13 +174,10 @@ function parseExcelFile(
 }
 
 export function UploadTab() {
-  const { addRoutes, setLastUpload, referenceDate, setReferenceDate } = useCCO()
+  const { addRoutes, setLastUpload, referenceDate, setReferenceDate, auditPeriod, setAuditPeriod } = useCCO()
   
-  const [auditPeriod, setAuditPeriodState] = useState({
-    start: new Date().toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0]
-  })
-
+  const [selectedCell, setSelectedCell] = useState<CellNumber>(1)
+  
   const [files, setFiles] = useState<UploadState>({
     cell1: null,
     cell2: null,
@@ -178,9 +186,9 @@ export function UploadTab() {
 
   const [processing, setProcessing] = useState<ProcessingStatus>({
     isProcessing: false,
-    cell1: { status: 'idle', count: 0 },
-    cell2: { status: 'idle', count: 0 },
-    cell3: { status: 'idle', count: 0 }
+    cell1: { status: 'idle', count: 0, plants: 0, alerts: 0 },
+    cell2: { status: 'idle', count: 0, plants: 0, alerts: 0 },
+    cell3: { status: 'idle', count: 0, plants: 0, alerts: 0 }
   })
 
   const handleFileChange = useCallback((celula: CellNumber, file: File | null) => {
@@ -198,173 +206,204 @@ export function UploadTab() {
 
     setProcessing(prev => ({ ...prev, isProcessing: true }))
     
-    const cellNumbers: CellNumber[] = [1, 2, 3]
+    const file = files[`cell${selectedCell}` as keyof UploadState]
+    if (!file) {
+      alert(`Por favor, selecione um arquivo para a Célula ${selectedCell}`)
+      setProcessing(prev => ({ ...prev, isProcessing: false }))
+      return
+    }
     
-    for (const celula of cellNumbers) {
-      const file = files[`cell${celula}` as keyof UploadState]
-      if (!file) continue
+    setProcessing(prev => ({
+      ...prev,
+      [`cell${selectedCell}`]: { status: 'processing', count: 0, plants: 0, alerts: 0 }
+    }))
+    
+    try {
+      const result = await parseExcelFile(file, selectedCell, auditPeriod.start, auditPeriod.end)
+      addRoutes(result.routes, selectedCell, auditPeriod.start, auditPeriod.end)
       
+      if (!referenceDate) {
+        setReferenceDate(auditPeriod.start)
+      }
+
       setProcessing(prev => ({
         ...prev,
-        [`cell${celula}`]: { status: 'processing', count: 0 }
-      }))
-      
-      try {
-        const routes = await parseExcelFile(file, celula, auditPeriod.start, auditPeriod.end)
-        addRoutes(routes, celula, auditPeriod.start, auditPeriod.end)
-        
-        if (!referenceDate) {
-          setReferenceDate(auditPeriod.start)
+        [`cell${selectedCell}`]: { 
+          status: 'done', 
+          count: result.routes.length, 
+          plants: result.plantCount, 
+          alerts: result.alerts 
         }
-
-        setProcessing(prev => ({
-          ...prev,
-          [`cell${celula}`]: { status: 'done', count: routes.length }
-        }))
-      } catch (error) {
-        console.error(`Erro ao processar célula ${celula}:`, error)
-        setProcessing(prev => ({
-          ...prev,
-          [`cell${celula}`]: { status: 'error', count: 0 }
-        }))
-      }
+      }))
+    } catch (error) {
+      console.error(`Erro ao processar célula ${selectedCell}:`, error)
+      setProcessing(prev => ({
+        ...prev,
+        [`cell${selectedCell}`]: { status: 'error', count: 0, plants: 0, alerts: 0 }
+      }))
     }
     
     setLastUpload(new Date().toLocaleString('pt-BR'))
     setProcessing(prev => ({ ...prev, isProcessing: false }))
-  }, [files, auditPeriod, addRoutes, setLastUpload, referenceDate, setReferenceDate])
+  }, [files, selectedCell, auditPeriod, addRoutes, setLastUpload, referenceDate, setReferenceDate])
 
-  const hasFiles = files.cell1 || files.cell2 || files.cell3
+  const currentProcessing = processing[`cell${selectedCell}` as keyof Omit<ProcessingStatus, 'isProcessing'>]
+  const currentFile = files[`cell${selectedCell}` as keyof UploadState]
 
   return (
-    <div className="space-y-6">
-      <TabHeader 
-        title="Upload de Dados KMM" 
-        description="Configure o periodo de auditoria e faca o upload dos arquivos por celula"
-        showGlobalKpis={false}
-      />
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-lg">1. Periodo da Auditoria</CardTitle>
-            <CardDescription>Quando estes dados foram extraidos do KMM?</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Data Inicial:</label>
-              <Input 
-                type="date" 
-                value={auditPeriod.start} 
-                onChange={e => setAuditPeriodState(p => ({ ...p, start: e.target.value }))}
-                className="bg-secondary"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Data Final:</label>
-              <Input 
-                type="date" 
-                value={auditPeriod.end} 
-                onChange={e => setAuditPeriodState(p => ({ ...p, end: e.target.value }))}
-                className="bg-secondary"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground md:col-span-2">
-              * O sistema consolidara todos os arquivos deste periodo. Se importar um novo arquivo para a mesma celula e periodo, os dados anteriores serao substituidos.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-lg">2. Data de Referencia (Regresso)</CardTitle>
-            <CardDescription>Usada para identificar Regresso Antigo</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Data para Auditoria:</label>
-              <Input
-                type="date"
-                className="bg-secondary"
-                value={referenceDate || ''}
-                onChange={(e) => setReferenceDate(e.target.value || null)}
-              />
-              <p className="text-xs text-muted-foreground">Rotas com status &quot;Regresso&quot; fora desta data ({formatDateBR(referenceDate)}) serao contadas como pendencias.</p>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-xl">
+      <div className="mb-lg">
+        <h2 className="font-display-lg text-display-lg text-on-surface tracking-tight">Data Import</h2>
+        <p className="font-body-lg text-body-lg text-on-surface-variant mt-sm">Upload KMM operational data for cell analysis and integration.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {([1, 2, 3] as CellNumber[]).map((celula) => (
-          <Card key={celula} className={`bg-card border-border ${files[`cell${celula}` as keyof UploadState] ? 'border-primary/50' : ''}`}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center justify-between">
-                Célula {celula}
-                {files[`cell${celula}` as keyof UploadState] && (
-                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col gap-2">
-                <label 
-                  htmlFor={`file-${celula}`}
-                  className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors"
-                >
-                  <div className="flex flex-col items-center justify-center pt-2 pb-3">
-                    <svg className="w-6 h-6 mb-1 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <p className="text-xs text-muted-foreground px-2 text-center truncate w-full">
-                      {files[`cell${celula}` as keyof UploadState]?.name || 'Selecionar Excel'}
-                    </p>
-                  </div>
-                  <input
-                    id={`file-${celula}`}
-                    type="file"
-                    accept=".xlsx,.xls"
-                    className="hidden"
-                    onChange={(e) => handleFileChange(celula, e.target.files?.[0] || null)}
-                  />
-                </label>
-                
-                {processing[`cell${celula}` as keyof Omit<ProcessingStatus, 'isProcessing'>] && (
-                  <div className="text-xs">
-                    {(processing[`cell${celula}` as 'cell1' | 'cell2' | 'cell3'] as any).status === 'processing' && (
-                      <span className="text-warning">Processando...</span>
-                    )}
-                    {(processing[`cell${celula}` as 'cell1' | 'cell2' | 'cell3'] as any).status === 'done' && (
-                      <span className="text-success font-medium">
-                        {formatNumber((processing[`cell${celula}` as 'cell1' | 'cell2' | 'cell3'] as any).count)} rotas importadas
-                      </span>
-                    )}
-                  </div>
-                )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+        {/* Upload Section */}
+        <div className="lg:col-span-2 flex flex-col gap-gutter">
+          {/* Parameters Card */}
+          <section className="executive-card p-xl">
+            <h3 className="font-headline-md text-headline-md text-on-surface mb-md border-b border-outline-variant/30 pb-sm">Import Parameters</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+              <div className="space-y-xs">
+                <label className="block font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Operational Cell</label>
+                <Select value={selectedCell.toString()} onValueChange={(v) => setSelectedCell(Number(v) as CellNumber)}>
+                  <SelectTrigger className="w-full h-11 bg-surface border-outline-variant focus:ring-primary focus:border-primary text-body-md">
+                    <SelectValue placeholder="Select Cell" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Cell 1 - Sudeste / Sul</SelectItem>
+                    <SelectItem value="2">Cell 2 - Nordeste</SelectItem>
+                    <SelectItem value="3">Cell 3 - Centro-Oeste</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
+              <div className="space-y-xs">
+                <label className="block font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Audit Period Start</label>
+                <Input 
+                  type="date" 
+                  value={auditPeriod.start || ''} 
+                  onChange={e => setAuditPeriod(e.target.value, auditPeriod.end)}
+                  className="h-11 bg-surface border-outline-variant focus:border-primary text-body-md"
+                />
+              </div>
+              <div className="space-y-xs">
+                <label className="block font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Reference Date (Return)</label>
+                <Input 
+                  type="date" 
+                  value={referenceDate || ''} 
+                  onChange={e => setReferenceDate(e.target.value)}
+                  className="h-11 bg-surface border-outline-variant focus:border-primary text-body-md"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-on-surface-variant mt-4 italic">
+              * Auditoria Fim sera automaticamente sincronizada se nao houver alteracao no Detalhamento.
+            </p>
+          </section>
+
+          {/* Dropzone Card */}
+          <section 
+            className="executive-card p-xl flex flex-col items-center justify-center min-h-[340px] dropzone-border cursor-pointer relative overflow-hidden group"
+            onClick={() => document.getElementById(`file-${selectedCell}`)?.click()}
+          >
+            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+               <span className="material-symbols-outlined text-4xl text-primary">upload_file</span>
+            </div>
+            <h4 className="font-headline-md text-headline-md text-on-surface mb-2">Drag and drop Excel file here</h4>
+            <p className="font-body-md text-body-md text-on-surface-variant mb-8 text-center max-w-md">
+              Supported formats: .xlsx, .xls, .csv. Maximum file size: 50MB. <br/>
+              Uploading for <strong className="text-primary">Cell {selectedCell}</strong>.
+            </p>
+            <Button variant="outline" className="h-11 px-8 border-primary text-primary font-bold hover:bg-primary hover:text-on-primary">
+               Browse Files
+            </Button>
+            <input
+              id={`file-${selectedCell}`}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={(e) => handleFileChange(selectedCell, e.target.files?.[0] || null)}
+            />
+          </section>
+        </div>
+
+        {/* Diagnosis Section */}
+        <div className="lg:col-span-1">
+          <Card className="executive-card p-xl h-full flex flex-col border border-outline-variant/50">
+            <div className="flex items-center justify-between border-b border-outline-variant/30 pb-sm mb-md">
+              <h3 className="font-headline-md text-headline-md text-on-surface">Import Diagnosis</h3>
+              <span className={`px-3 py-1 rounded-full font-label-md text-label-md font-bold uppercase tracking-widest
+                ${currentProcessing.status === 'done' ? 'bg-success/10 text-success' : 'bg-surface-container-highest text-on-surface-variant'}
+              `}>
+                {currentProcessing.status === 'done' ? 'Ready' : currentProcessing.status === 'processing' ? 'Active' : 'Pending'}
+              </span>
+            </div>
+
+            <div className="flex-1 flex flex-col gap-6">
+              {currentFile ? (
+                <div className="flex items-center gap-4 text-primary bg-primary/5 p-md rounded-xl border border-primary/10">
+                  <span className="material-symbols-outlined text-3xl">description</span>
+                  <div className="overflow-hidden">
+                    <p className="font-label-lg text-label-lg text-on-surface truncate font-bold">{currentFile.name}</p>
+                    <p className="font-body-sm text-[10px] text-on-surface-variant">{(currentFile.size / 1024 / 1024).toFixed(2)} MB • File selected</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-10 text-center border border-dashed border-outline-variant/50 rounded-xl bg-surface/50">
+                   <span className="material-symbols-outlined text-outline text-3xl mb-2">cloud_off</span>
+                   <p className="text-[11px] text-on-surface-variant font-bold uppercase">No file selected for Cell {selectedCell}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-gutter">
+                <div className="bg-surface-container-low p-md rounded-xl border border-outline-variant/20 shadow-sm">
+                  <p className="font-label-md text-[10px] text-on-surface-variant uppercase font-bold">Routes Found</p>
+                  <p className="font-headline-md text-headline-md text-on-surface mt-1 leading-none">{formatNumber(currentProcessing.count)}</p>
+                </div>
+                <div className="bg-surface-container-low p-md rounded-xl border border-outline-variant/20 shadow-sm">
+                  <p className="font-label-md text-[10px] text-on-surface-variant uppercase font-bold">Plants Mapped</p>
+                  <p className="font-headline-md text-headline-md text-on-surface mt-1 leading-none">{currentProcessing.plants}</p>
+                </div>
+                <div className={`p-md rounded-xl border shadow-sm col-span-2
+                  ${currentProcessing.alerts > 0 ? 'bg-error-container/20 border-error/50' : 'bg-surface-container-low border-outline-variant/20'}
+                `}>
+                  <p className={`font-label-md text-[10px] uppercase font-bold ${currentProcessing.alerts > 0 ? 'text-error' : 'text-on-surface-variant'}`}>
+                    Data Alerts
+                  </p>
+                  <p className={`font-headline-md text-headline-md mt-1 leading-none ${currentProcessing.alerts > 0 ? 'text-error' : 'text-on-surface'}`}>
+                    {currentProcessing.alerts} {currentProcessing.alerts === 1 ? 'Inconsistency' : 'Inconsistencies'}
+                  </p>
+                  {currentProcessing.alerts > 0 && <p className="text-[9px] text-error mt-1 italic">* Missing or malformed route dates detected.</p>}
+                </div>
+              </div>
+
+              <div className="mt-auto pt-6">
+                <Button 
+                  onClick={handleProcess}
+                  disabled={!currentFile || processing.isProcessing}
+                  className="w-full bg-primary text-on-primary h-12 rounded-xl font-bold uppercase tracking-widest shadow-md hover:bg-primary-container transition-all active:scale-95"
+                >
+                  {processing.isProcessing ? 'Processing...' : 'Confirm & Process Data'}
+                </Button>
+              </div>
+            </div>
           </Card>
-        ))}
+        </div>
       </div>
 
-      <Button 
-        onClick={handleProcess}
-        disabled={!hasFiles || processing.isProcessing}
-        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 text-lg font-bold"
-      >
-        {processing.isProcessing ? 'Processando Arquivos...' : 'Consolidar Auditoria'}
-      </Button>
-
-      <Card className="bg-secondary/30 border-border">
-        <CardHeader>
-          <CardTitle className="text-sm">Informaçoes sobre o Parser</CardTitle>
-        </CardHeader>
-        <CardContent className="text-xs text-muted-foreground space-y-1">
-          <p>• O sistema reconhece colunas com nomes variados (Roteiro, Placa, Status, Litros, etc).</p>
-          <p>• Linhas iniciadas com &quot;Planta:&quot; sao usadas para agrupar as rotas abaixo.</p>
-          <p>• Sem Contra Leite é calculado sobre a coluna de <strong>Litros Descarregados</strong>.</p>
-        </CardContent>
-      </Card>
+      {/* Audit Info Card */}
+      <section className="bg-secondary/10 border border-secondary/20 rounded-xl p-lg flex items-start gap-4 shadow-sm">
+         <span className="material-symbols-outlined text-secondary text-2xl">info</span>
+         <div className="space-y-1">
+            <h4 className="font-bold text-on-surface text-sm uppercase tracking-wider">Protocolo de Consolidação Operacional</h4>
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+               Ao processar os arquivos, o sistema tagueará automaticamente cada rota com o período de auditoria selecionado. 
+               Se você importar um novo arquivo para a mesma célula e mesmo período, os dados anteriores serão <strong className="text-primary">substituídos</strong> para evitar duplicidade. 
+               A data de referência para Regresso Antigo é fundamental para o cálculo correto dos indicadores críticos.
+            </p>
+         </div>
+      </section>
     </div>
   )
 }
