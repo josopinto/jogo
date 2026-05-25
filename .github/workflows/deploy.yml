@@ -5,16 +5,23 @@ on:
     branches:
       - main
 
+  workflow_dispatch:
+
 permissions:
   contents: read
   pages: write
   id-token: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Baixar arquivos
@@ -23,18 +30,13 @@ jobs:
       - name: Configurar Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
-
-      - name: Configurar pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
+          node-version: 22
 
       - name: Instalar dependências
-        run: pnpm install --frozen-lockfile
+        run: npm install
 
       - name: Gerar site
-        run: pnpm build
+        run: npm run build
 
       - name: Criar arquivo .nojekyll
         run: touch ./out/.nojekyll
@@ -45,11 +47,14 @@ jobs:
           path: ./out
 
   deploy:
-    needs: build
-    runs-on: ubuntu-latest
     environment:
       name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    needs: build
 
     steps:
       - name: Publicar
+        id: deployment
         uses: actions/deploy-pages@v4
