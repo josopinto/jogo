@@ -6,6 +6,11 @@ export const INITIAL_STATE: AppState = {
   routes: INITIAL_ROUTES,
   lastUpload: null,
   referenceDate: null,
+  auditPeriod: {
+    start: null,
+    end: null
+  },
+  indicatorScope: 'pending',
   uploadSummary: {
     cell1: 0,
     cell2: 0,

@@ -3,6 +3,7 @@
 export type RouteStatus = 'Encerrado' | 'Com Pendências' | 'Em execução' | 'Previsto' | 'Regresso'
 export type KmStatus = 'OK' | 'Rodado a mais' | 'Rodado a menos'
 export type CellNumber = 1 | 2 | 3
+export type FilterScope = 'all' | 'pending' | 'closed'
 
 export interface Route {
   id: string
@@ -27,6 +28,12 @@ export interface Route {
   kmRodado: number
   kmFechamento: number
   kmRecebido: number
+  // Novos campos de controle
+  dataRota: string | null // DD/MM/YYYY formatado
+  dataAuditoriaInicio: string | null
+  dataAuditoriaFim: string | null
+  uploadId: string
+  nomeArquivo: string
 }
 
 export interface PlantSummary {
@@ -38,13 +45,17 @@ export interface PlantSummary {
   emExecucao: number
   previsto: number
   regresso: number
+  regressoAntigo: number
   percentualEncerramento: number
   kmOk: number
   kmMais: number
   kmMenos: number
+  kmErrado: number
   litrosColetados: number
   litrosDescarregados: number
   semContraLeite: number
+  totalCritico: number
+  percentualCritico: number
 }
 
 export interface CellSummary {
@@ -55,11 +66,16 @@ export interface CellSummary {
   emExecucao: number
   previsto: number
   regresso: number
+  regressoAntigo: number
   percentualEncerramento: number
   kmOk: number
   kmMais: number
   kmMenos: number
+  kmErrado: number
   litrosColetados: number
+  semContraLeite: number
+  totalCritico: number
+  percentualCritico: number
   plantas: PlantSummary[]
 }
 
@@ -119,6 +135,11 @@ export interface AppState {
   routes: Route[]
   lastUpload: string | null
   referenceDate: string | null
+  auditPeriod: {
+    start: string | null
+    end: string | null
+  }
+  indicatorScope: FilterScope
   uploadSummary: {
     cell1: number
     cell2: number

@@ -77,11 +77,21 @@ const tabs: Tab[] = [
 
 function DashboardContent() {
   const [activeTab, setActiveTab] = useState<TabId>('summary')
-  const { routes, uploadSummary, referenceDate } = useCCO()
+  const { routes, uploadSummary, referenceDate, auditPeriod, indicatorScope } = useCCO()
   
-  const summary = useMemo(() => calculateGlobalSummary(routes, referenceDate), [routes, referenceDate])
-  const totalRoutes = uploadSummary.cell1 + uploadSummary.cell2 + uploadSummary.cell3
-  const pendentesTotal = summary.pendencias
+  // Base Filtrada pelo Período de Auditoria para o Header
+  const routesInAudit = useMemo(() => {
+    return filterRoutesByAuditPeriod(routes, auditPeriod.start, auditPeriod.end)
+  }, [routes, auditPeriod])
+
+  const summary = useMemo(() => calculateGlobalSummary(routesInAudit, referenceDate), [routesInAudit, referenceDate])
+  
+  // Indicadores respeitando o escopo para contra-leite e KM no header
+  const routesInScope = useMemo(() => {
+    return applyStatusScope(routesInAudit, indicatorScope, referenceDate)
+  }, [routesInAudit, indicatorScope, referenceDate])
+  
+  const indicatorStats = useMemo(() => calculateGlobalSummary(routesInScope, referenceDate), [routesInScope, referenceDate])
 
   return (
     <div className="dark min-h-screen bg-background text-foreground">
@@ -103,29 +113,26 @@ function DashboardContent() {
             
             {/* KPIs Resumidos no Header */}
             <div className="hidden lg:flex items-center gap-4">
-              {referenceDate && (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-                  <span className="text-xs text-muted-foreground">Ref:</span>
-                  <span className="text-sm font-bold text-primary">{referenceDate}</span>
-                </div>
-              )}
+              <div className="flex flex-col items-end mr-4 border-r border-border pr-4">
+                 <span className="text-[10px] font-bold text-muted-foreground uppercase">Auditoria Ativa</span>
+                 <span className="text-xs font-mono font-bold text-primary">{auditPeriod.start || '---'} ate {auditPeriod.end || '---'}</span>
+              </div>
 
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
-                <div className={`w-2 h-2 rounded-full ${summary.percentualEncerramento >= 95 ? 'bg-success' : summary.percentualEncerramento >= 90 ? 'bg-warning' : 'bg-danger animate-pulse'}`} />
                 <span className="text-xs text-muted-foreground">Encerramento:</span>
-                <span className={`text-sm font-bold ${summary.percentualEncerramento >= 95 ? 'text-success' : summary.percentualEncerramento >= 90 ? 'text-warning' : 'text-danger'}`}>
+                <span className={`text-sm font-bold ${summary.percentualEncerramento >= 95 ? 'text-success' : 'text-danger'}`}>
                   {formatPercentage(summary.percentualEncerramento)}
                 </span>
               </div>
               
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
-                <span className="text-xs text-muted-foreground">Total:</span>
-                <span className="text-sm font-bold text-foreground">{formatNumber(summary.totalRotas)}</span>
-              </div>
-              
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
                 <span className="text-xs text-muted-foreground">Pendentes:</span>
-                <span className="text-sm font-bold text-danger">{formatNumber(pendentesTotal)}</span>
+                <span className="text-sm font-bold text-danger">{formatNumber(summary.pendencias)}</span>
+              </div>
+
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
+                <span className="text-xs text-muted-foreground">S.C. Leite*:</span>
+                <span className="text-sm font-bold text-warning">{formatNumber(indicatorStats.semContraLeite)}</span>
               </div>
             </div>
           </div>

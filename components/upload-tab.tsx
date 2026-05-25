@@ -7,7 +7,8 @@ import { useCCO } from './cco-context'
 import { TabHeader } from './tab-header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { formatNumber } from '@/lib/data-utils'
+import { formatNumber, formatToBrazillianDate } from '@/lib/data-utils'
+import { Input } from '@/components/ui/input'
 
 interface UploadState {
   cell1: File | null
@@ -22,7 +23,29 @@ interface ProcessingStatus {
   cell3: { status: 'idle' | 'processing' | 'done' | 'error'; count: number }
 }
 
-function parseExcelFile(file: File, celula: CellNumber): Promise<Route[]> {
+// Mapeador de colunas flexível
+const COLUMN_MAP: Record<string, string[]> = {
+  roteiro: ['Roteiro', 'roteiro'],
+  status: ['Status', 'status'],
+  placa: ['Placa', 'placa'],
+  kmStatus: ['KM status', 'KM Status', 'kmStatus'],
+  observacao: ['Observação 2', 'Observação', 'Observacao', 'observacao'],
+  litrosColetados: ['Total litros coletados', 'Litros Col.', 'Litros Coletados', 'litrosColetados'],
+  litrosDescarregados: ['Litros descarregados', 'Litros Des.', 'Total litros descarregados', 'litrosDescarregados'],
+  inicio: ['Data início manual', 'Data Inicio', 'Início', 'Inicio', 'inicio'],
+  termino: ['Data término manual', 'Data Termino', 'Término', 'Termino', 'termino']
+}
+
+function findColumnIndex(headers: string[], keys: string[]): number {
+  return headers.findIndex(h => keys.some(k => String(h || '').trim().toLowerCase() === k.toLowerCase()))
+}
+
+function parseExcelFile(
+  file: File, 
+  celula: CellNumber, 
+  auditStart: string, 
+  auditEnd: string
+): Promise<Route[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     
@@ -31,85 +54,112 @@ function parseExcelFile(file: File, celula: CellNumber): Promise<Route[]> {
         const data = e.target?.result
         const workbook = XLSX.read(data, { type: 'binary' })
         
-        // Procurar aba "Dados" ou a primeira disponível
+        // Procurar aba "Dados" ou a primeira
         const sheetName = workbook.SheetNames.find(name => 
-          name.toLowerCase() === 'dados' || name.toLowerCase() === 'planilha1'
+          ['dados', 'planilha1', 'sheet1'].includes(name.toLowerCase())
         ) || workbook.SheetNames[0]
         
         const worksheet = workbook.Sheets[sheetName]
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as unknown[][]
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true }) as any[][]
         
+        if (jsonData.length < 2) {
+          resolve([])
+          return
+        }
+
+        // Identificar cabeçalho (pode estar em diversas linhas, vamos procurar a que tem "Roteiro")
+        let headerRowIndex = jsonData.findIndex(row => 
+          row.some(cell => String(cell || '').trim().toLowerCase() === 'roteiro')
+        )
+        if (headerRowIndex === -1) headerRowIndex = 0
+        
+        const headers = jsonData[headerRowIndex].map(h => String(h || '').trim())
+        
+        const idx = {
+          roteiro: findColumnIndex(headers, COLUMN_MAP.roteiro),
+          status: findColumnIndex(headers, COLUMN_MAP.status),
+          placa: findColumnIndex(headers, COLUMN_MAP.placa),
+          kmStatus: findColumnIndex(headers, COLUMN_MAP.kmStatus),
+          observacao: findColumnIndex(headers, COLUMN_MAP.observacao),
+          litrosColetados: findColumnIndex(headers, COLUMN_MAP.litrosColetados),
+          litrosDescarregados: findColumnIndex(headers, COLUMN_MAP.litrosDescarregados),
+          inicio: findColumnIndex(headers, COLUMN_MAP.inicio),
+          termino: findColumnIndex(headers, COLUMN_MAP.termino)
+        }
+
         const routes: Route[] = []
         let currentPlanta = ''
+        const uploadId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
         
-        // Processa as linhas
-        for (let i = 0; i < jsonData.length; i++) {
-          const row = jsonData[i] as (string | number | boolean | null | undefined)[]
+        // Processar a partir do cabeçalho
+        for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
+          const row = jsonData[i]
           if (!row || row.length === 0) continue
           
-          const firstCell = String(row[0] || '').trim()
+          const firstCellValue = String(row[0] || '').trim()
           
-          // Verifica se é uma linha de planta
-          // Formato esperado: "Planta: NOME DA PLANTA"
-          if (firstCell.toLowerCase().includes('planta:')) {
-            currentPlanta = firstCell.split(/planta:/i)[1].trim()
+          // Captura de Planta (ex: "Planta: DPA - ARARAS")
+          if (firstCellValue.toLowerCase().includes('planta:')) {
+            currentPlanta = firstCellValue.split(/planta:/i)[1].trim()
             continue
           }
           
-          // Verifica se é uma linha de dados (coluna B - roteiro deve existir e não ser cabeçalho)
-          const roteiro = String(row[1] || '').trim()
-          if (!roteiro || roteiro.toLowerCase() === 'roteiro' || roteiro.toLowerCase().includes('total')) continue
+          const roteiro = idx.roteiro !== -1 ? String(row[idx.roteiro] || '').trim() : ''
+          const status = idx.status !== -1 ? String(row[idx.status] || 'Previsto').trim() as RouteStatus : 'Previsto'
           
-          // Se chegamos aqui, é uma rota válida
-          const status = String(row[2] || 'Previsto').trim() as RouteStatus
-          const eventos = String(row[3] || '').trim()
-          const placa = String(row[4] || '').trim()
-          const kmStatus = String(row[5] || 'OK').trim() as KmStatus
-          const dataInicioManual = row[6] ? String(row[6]) : null
-          const dataTerminoManual = row[7] ? String(row[7]) : null
-          const inicio = row[8] ? String(row[8]) : null
-          const termino = row[9] ? String(row[9]) : null
-          const observacao = String(row[10] || '').trim()
-          const litrosColetados = Number(row[11]) || 0
-          const litrosDescarregados = Number(row[12]) || 0
-          const kmPrevisto = Number(row[13]) || 0
-          const kmDiferenca = Number(row[14]) || 0
-          const kmPrevistoTotal = Number(row[15]) || 0
-          const kmRodadoTotal = Number(row[16]) || 0
-          const kmRodado = Number(row[17]) || 0
-          const kmFechamento = Number(row[18]) || 0
-          const kmRecebido = Number(row[19]) || 0
+          // Validação de rota mínima
+          if (!roteiro || roteiro.toLowerCase() === 'roteiro' || roteiro.toLowerCase().includes('total')) {
+            continue
+          }
+
+          // Se não tem status válido e não tem placa, ignorar (pode ser linha de total ou vazia)
+          const placa = idx.placa !== -1 ? String(row[idx.placa] || '').trim() : ''
+          if (!status && !placa) continue
+
+          const rawInicio = idx.inicio !== -1 ? row[idx.inicio] : null
+          const rawTermino = idx.termino !== -1 ? row[idx.termino] : null
           
+          const dataRota = formatToBrazillianDate(rawInicio || rawTermino)
+
           routes.push({
-            id: `${celula}-${currentPlanta}-${roteiro}-${i}`,
+            id: `${celula}-${roteiro}-${i}-${uploadId}`,
             celula,
             planta: currentPlanta || `Planta C${celula}`,
             roteiro,
             status: (['Encerrado', 'Com Pendências', 'Em execução', 'Previsto', 'Regresso'].includes(status) 
               ? status 
               : 'Previsto') as RouteStatus,
-            eventos,
+            eventos: '', // KMM export can vary, defaults to empty
             placa,
-            kmStatus: (['OK', 'Rodado a mais', 'Rodado a menos'].includes(kmStatus) ? kmStatus : 'OK') as KmStatus,
-            dataInicioManual,
-            dataTerminoManual,
-            inicio,
-            termino,
-            observacao,
-            litrosColetados,
-            litrosDescarregados,
-            kmPrevisto,
-            kmDiferenca,
-            kmPrevistoTotal,
-            kmRodadoTotal,
-            kmRodado,
-            kmFechamento,
-            kmRecebido
+            kmStatus: (['OK', 'Rodado a mais', 'Rodado a menos'].includes(String(row[idx.kmStatus])) 
+              ? row[idx.kmStatus] 
+              : 'OK') as KmStatus,
+            dataInicioManual: String(rawInicio || ''),
+            dataTerminoManual: String(rawTermino || ''),
+            inicio: String(rawInicio || ''),
+            termino: String(rawTermino || ''),
+            observacao: idx.observacao !== -1 ? String(row[idx.observacao] || '').trim() : '',
+            litrosColetados: idx.litrosColetados !== -1 ? (Number(row[idx.litrosColetados]) || 0) : 0,
+            litrosDescarregados: idx.litrosDescarregados !== -1 ? (Number(row[idx.litrosDescarregados]) || 0) : 0,
+            kmPrevisto: 0,
+            kmDiferenca: 0,
+            kmPrevistoTotal: 0,
+            kmRodadoTotal: 0,
+            kmRodado: 0,
+            kmFechamento: 0,
+            kmRecebido: 0,
+            // Meta-dados
+            dataRota,
+            dataAuditoriaInicio: auditStart,
+            dataAuditoriaFim: auditEnd,
+            uploadId,
+            nomeArquivo: file.name
           })
         }
         
         resolve(routes)
       } catch (error) {
+        console.error('Erro no parser:', error)
         reject(error)
       }
     }
@@ -121,11 +171,18 @@ function parseExcelFile(file: File, celula: CellNumber): Promise<Route[]> {
 
 export function UploadTab() {
   const { addRoutes, setLastUpload, uploadSummary, lastUpload, referenceDate, setReferenceDate } = useCCO()
+  
+  const [auditPeriod, setAuditPeriodState] = useState({
+    start: new Date().toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
+  })
+
   const [files, setFiles] = useState<UploadState>({
     cell1: null,
     cell2: null,
     cell3: null
   })
+
   const [processing, setProcessing] = useState<ProcessingStatus>({
     isProcessing: false,
     cell1: { status: 'idle', count: 0 },
@@ -141,8 +198,8 @@ export function UploadTab() {
   }, [])
 
   const handleProcess = useCallback(async () => {
-    if (!referenceDate) {
-      alert('Por favor, selecione uma Data de Referencia para o auditoria.')
+    if (!auditPeriod.start || !auditPeriod.end) {
+      alert('Por favor, preencha o Período de Auditoria.')
       return
     }
 
@@ -160,9 +217,15 @@ export function UploadTab() {
       }))
       
       try {
-        const routes = await parseExcelFile(file, celula)
-        addRoutes(routes, celula)
+        const routes = await parseExcelFile(file, celula, auditPeriod.start, auditPeriod.end)
+        addRoutes(routes, celula, auditPeriod.start, auditPeriod.end)
         
+        // Se a data de referência ainda não foi definida, sugere a data de início da auditoria
+        if (!referenceDate) {
+          const [y, m, d] = auditPeriod.start.split('-')
+          setReferenceDate(`${d}/${m}/${y}`)
+        }
+
         setProcessing(prev => ({
           ...prev,
           [`cell${celula}`]: { status: 'done', count: routes.length }
@@ -178,67 +241,99 @@ export function UploadTab() {
     
     setLastUpload(new Date().toLocaleString('pt-BR'))
     setProcessing(prev => ({ ...prev, isProcessing: false }))
-  }, [files, addRoutes, setLastUpload, referenceDate])
+  }, [files, auditPeriod, addRoutes, setLastUpload, referenceDate, setReferenceDate])
 
   const hasFiles = files.cell1 || files.cell2 || files.cell3
 
   return (
     <div className="space-y-6">
       <TabHeader 
-        title="Upload de Dados" 
-        description="Faca upload dos arquivos Excel exportados do KMM para cada celula operacional"
+        title="Upload de Dados KMM" 
+        description="Configure o periodo de auditoria e faca o upload dos arquivos por celula"
         showGlobalKpis={false}
       />
 
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-lg">Configuracao da Auditoria</CardTitle>
-          <CardDescription>Defina a data de referencia para calculo de Regresso Antigo</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-2 max-w-xs">
-            <label className="text-sm font-medium">Data de Referencia:</label>
-            <input
-              type="date"
-              className="px-3 py-2 rounded-md bg-secondary border border-border text-foreground text-sm"
-              value={referenceDate ? referenceDate.split('/').reverse().join('-') : ''}
-              onChange={(e) => {
-                if (e.target.value) {
-                  const [year, month, day] = e.target.value.split('-')
-                  setReferenceDate(`${day}/${month}/${year}`)
-                } else {
-                  setReferenceDate(null)
-                }
-              }}
-            />
-            <p className="text-xs text-muted-foreground">Rotas com status &quot;Regresso&quot; fora desta data serao contadas como pendencias.</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-lg">1. Periodo da Auditoria</CardTitle>
+            <CardDescription>Quando estes dados foram extraidos do KMM?</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Data Inicial:</label>
+              <Input 
+                type="date" 
+                value={auditPeriod.start} 
+                onChange={e => setAuditPeriodState(p => ({ ...p, start: e.target.value }))}
+                className="bg-secondary"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Data Final:</label>
+              <Input 
+                type="date" 
+                value={auditPeriod.end} 
+                onChange={e => setAuditPeriodState(p => ({ ...p, end: e.target.value }))}
+                className="bg-secondary"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground md:col-span-2">
+              * O sistema consolidara todos os arquivos deste periodo. Se importar um novo arquivo para a mesma celula e periodo, os dados anteriores serao substituidos.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-lg">2. Data de Referencia (Regresso)</CardTitle>
+            <CardDescription>Usada para identificar Regresso Antigo</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Data para Auditoria:</label>
+              <Input
+                type="date"
+                className="bg-secondary"
+                value={referenceDate ? referenceDate.split('/').reverse().join('-') : ''}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const [year, month, day] = e.target.value.split('-')
+                    setReferenceDate(`${day}/${month}/${year}`)
+                  } else {
+                    setReferenceDate(null)
+                  }
+                }}
+              />
+              <p className="text-xs text-muted-foreground">Rotas com status &quot;Regresso&quot; fora desta data serao contadas como pendencias.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         {([1, 2, 3] as CellNumber[]).map((celula) => (
-          <Card key={celula} className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-lg">Arquivo Célula {celula}</CardTitle>
-              <CardDescription>
-                {celula === 1 && '9 operações: DPA, ITALAC, LACTALIS, NESTLE, PIRACANJUBA, VERDE CAMPO'}
-                {celula === 2 && '10 operações: BRQ, DANONE, DEALE, ITALAC, CATUPIRY, LATPASSOS'}
-                {celula === 3 && '9 operações: CBL, CCPR, ITALAC, LACTALIS, POLENGHI'}
-              </CardDescription>
+          <Card key={celula} className={`bg-card border-border ${files[`cell${celula}` as keyof UploadState] ? 'border-primary/50' : ''}`}>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center justify-between">
+                Célula {celula}
+                {files[`cell${celula}` as keyof UploadState] && (
+                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col gap-2">
                 <label 
                   htmlFor={`file-${celula}`}
-                  className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors"
+                  className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors"
                 >
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <svg className="w-8 h-8 mb-2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex flex-col items-center justify-center pt-2 pb-3">
+                    <svg className="w-6 h-6 mb-1 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <p className="text-sm text-muted-foreground">
-                      {files[`cell${celula}` as keyof UploadState]?.name || 'Clique para selecionar arquivo .xlsx'}
+                    <p className="text-xs text-muted-foreground px-2 text-center truncate w-full">
+                      {files[`cell${celula}` as keyof UploadState]?.name || 'Selecionar Excel'}
                     </p>
                   </div>
                   <input
@@ -250,19 +345,15 @@ export function UploadTab() {
                   />
                 </label>
                 
-                {processing[`cell${celula}` as keyof Omit<ProcessingStatus, 'isProcessing'>] && 
-                 typeof processing[`cell${celula}` as keyof Omit<ProcessingStatus, 'isProcessing'>] === 'object' && (
-                  <div className="text-sm">
-                    {(processing[`cell${celula}` as 'cell1' | 'cell2' | 'cell3'] as { status: string; count: number }).status === 'processing' && (
+                {processing[`cell${celula}` as keyof Omit<ProcessingStatus, 'isProcessing'>] && (
+                  <div className="text-xs">
+                    {(processing[`cell${celula}` as 'cell1' | 'cell2' | 'cell3'] as any).status === 'processing' && (
                       <span className="text-warning">Processando...</span>
                     )}
-                    {(processing[`cell${celula}` as 'cell1' | 'cell2' | 'cell3'] as { status: string; count: number }).status === 'done' && (
-                      <span className="text-success">
-                        {formatNumber((processing[`cell${celula}` as 'cell1' | 'cell2' | 'cell3'] as { status: string; count: number }).count)} rotas processadas
+                    {(processing[`cell${celula}` as 'cell1' | 'cell2' | 'cell3'] as any).status === 'done' && (
+                      <span className="text-success font-medium">
+                        {formatNumber((processing[`cell${celula}` as 'cell1' | 'cell2' | 'cell3'] as any).count)} rotas importadas
                       </span>
-                    )}
-                    {(processing[`cell${celula}` as 'cell1' | 'cell2' | 'cell3'] as { status: string; count: number }).status === 'error' && (
-                      <span className="text-danger">Erro ao processar arquivo</span>
                     )}
                   </div>
                 )}
@@ -272,62 +363,22 @@ export function UploadTab() {
         ))}
       </div>
 
-      <div className="flex flex-col gap-4">
-        <Button 
-          onClick={handleProcess}
-          disabled={!hasFiles || processing.isProcessing}
-          className="w-full md:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          {processing.isProcessing ? 'Processando...' : 'Processar Dados'}
-        </Button>
-      </div>
-
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle>Resumo dos Dados Carregados</CardTitle>
-          {lastUpload && (
-            <CardDescription>Ultimo upload: {lastUpload}</CardDescription>
-          )}
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="p-4 rounded-lg bg-secondary/50">
-              <p className="text-sm text-muted-foreground">Célula 1</p>
-              <p className="text-2xl font-bold text-foreground">{formatNumber(uploadSummary.cell1)}</p>
-              <p className="text-xs text-muted-foreground">rotas</p>
-            </div>
-            <div className="p-4 rounded-lg bg-secondary/50">
-              <p className="text-sm text-muted-foreground">Célula 2</p>
-              <p className="text-2xl font-bold text-foreground">{formatNumber(uploadSummary.cell2)}</p>
-              <p className="text-xs text-muted-foreground">rotas</p>
-            </div>
-            <div className="p-4 rounded-lg bg-secondary/50">
-              <p className="text-sm text-muted-foreground">Célula 3</p>
-              <p className="text-2xl font-bold text-foreground">{formatNumber(uploadSummary.cell3)}</p>
-              <p className="text-xs text-muted-foreground">rotas</p>
-            </div>
-            <div className="p-4 rounded-lg bg-primary/20">
-              <p className="text-sm text-muted-foreground">Total Geral</p>
-              <p className="text-2xl font-bold text-primary">{formatNumber(uploadSummary.cell1 + uploadSummary.cell2 + uploadSummary.cell3)}</p>
-              <p className="text-xs text-muted-foreground">rotas carregadas</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <Button 
+        onClick={handleProcess}
+        disabled={!hasFiles || processing.isProcessing}
+        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 text-lg font-bold"
+      >
+        {processing.isProcessing ? 'Processando Arquivos...' : 'Consolidar Auditoria'}
+      </Button>
 
       <Card className="bg-secondary/30 border-border">
         <CardHeader>
-          <CardTitle className="text-base">Estrutura Esperada do Excel</CardTitle>
+          <CardTitle className="text-sm">Informaçoes sobre o Parser</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>O arquivo Excel deve conter uma aba chamada <strong className="text-foreground">&quot;Dados&quot;</strong> com as seguintes colunas:</p>
-          <div className="grid gap-1 text-xs font-mono bg-background/50 p-3 rounded-lg overflow-x-auto">
-            <p>A: Marcador | B: Roteiro | C: Status | D: Eventos | E: Placa | F: KM Status</p>
-            <p>G: Data Inicio Manual | H: Data Termino Manual | I: Inicio | J: Termino</p>
-            <p>K: Observacao | L: Litros Coletados | M: Litros Descarregados</p>
-            <p>N: KM Previsto | O: KM Diferenca | P-T: KM diversos</p>
-          </div>
-          <p>As plantas devem estar identificadas em linhas separadas no formato: <strong className="text-foreground">Planta: NOME DA PLANTA</strong></p>
+        <CardContent className="text-xs text-muted-foreground space-y-1">
+          <p>• O sistema reconhece colunas com nomes variados (Roteiro, Placa, Status, Litros, etc).</p>
+          <p>• Linhas iniciadas com &quot;Planta:&quot; sao usadas para agrupar as rotas abaixo.</p>
+          <p>• Sem Contra Leite é calculado sobre a coluna de <strong>Litros Descarregados</strong>.</p>
         </CardContent>
       </Card>
     </div>

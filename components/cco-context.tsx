@@ -1,18 +1,22 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
-import { type Route, type CellNumber, type AppState } from '@/lib/types'
-import { INITIAL_STATE, INITIAL_ROUTES } from '@/lib/initial-data'
+import { type Route, type CellNumber, type AppState, type FilterScope } from '@/lib/types'
+import { INITIAL_STATE } from '@/lib/initial-data'
 
 interface CCOContextType {
   routes: Route[]
   lastUpload: string | null
   referenceDate: string | null
+  auditPeriod: { start: string | null; end: string | null }
+  indicatorScope: FilterScope
   uploadSummary: { cell1: number; cell2: number; cell3: number }
-  addRoutes: (newRoutes: Route[], celula: CellNumber) => void
+  addRoutes: (newRoutes: Route[], celula: CellNumber, periodStart: string, periodEnd: string) => void
   clearCellRoutes: (celula: CellNumber) => void
   setLastUpload: (date: string) => void
   setReferenceDate: (date: string | null) => void
+  setAuditPeriod: (start: string | null, end: string | null) => void
+  setIndicatorScope: (scope: FilterScope) => void
 }
 
 const CCOContext = createContext<CCOContextType | undefined>(undefined)
@@ -20,20 +24,25 @@ const CCOContext = createContext<CCOContextType | undefined>(undefined)
 export function CCOProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(INITIAL_STATE)
 
-  const addRoutes = useCallback((newRoutes: Route[], celula: CellNumber) => {
+  const addRoutes = useCallback((newRoutes: Route[], celula: CellNumber, periodStart: string, periodEnd: string) => {
     setState(prev => {
-      // Remove rotas antigas da mesma célula
-      const otherRoutes = prev.routes.filter(r => r.celula !== celula)
+      // Remover rotas antigas da mesma célula que pertencem ao mesmo período de auditoria
+      // Regra: se importar mesma célula + mesmo período, substitui.
+      const otherRoutes = prev.routes.filter(r => 
+        !(r.celula === celula && r.dataAuditoriaInicio === periodStart && r.dataAuditoriaFim === periodEnd)
+      )
+      
       const updatedRoutes = [...otherRoutes, ...newRoutes]
       
-      const cellKey = `cell${celula}` as 'cell1' | 'cell2' | 'cell3'
+      // Atualizar sumário de upload (apenas contagem total por célula no estado atual)
+      const cellCount = updatedRoutes.filter(r => r.celula === celula).length
       
       return {
         ...prev,
         routes: updatedRoutes,
         uploadSummary: {
           ...prev.uploadSummary,
-          [cellKey]: newRoutes.length
+          [`cell${celula}`]: cellCount
         }
       }
     })
@@ -51,17 +60,19 @@ export function CCOProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const setLastUpload = useCallback((date: string) => {
-    setState(prev => ({
-      ...prev,
-      lastUpload: date
-    }))
+    setState(prev => ({ ...prev, lastUpload: date }))
   }, [])
 
   const setReferenceDate = useCallback((date: string | null) => {
-    setState(prev => ({
-      ...prev,
-      referenceDate: date
-    }))
+    setState(prev => ({ ...prev, referenceDate: date }))
+  }, [])
+
+  const setAuditPeriod = useCallback((start: string | null, end: string | null) => {
+    setState(prev => ({ ...prev, auditPeriod: { start, end } }))
+  }, [])
+
+  const setIndicatorScope = useCallback((scope: FilterScope) => {
+    setState(prev => ({ ...prev, indicatorScope: scope }))
   }, [])
 
   return (
@@ -70,11 +81,15 @@ export function CCOProvider({ children }: { children: ReactNode }) {
         routes: state.routes,
         lastUpload: state.lastUpload,
         referenceDate: state.referenceDate,
+        auditPeriod: state.auditPeriod,
+        indicatorScope: state.indicatorScope,
         uploadSummary: state.uploadSummary,
         addRoutes,
         clearCellRoutes,
         setLastUpload,
-        setReferenceDate
+        setReferenceDate,
+        setAuditPeriod,
+        setIndicatorScope
       }}
     >
       {children}
