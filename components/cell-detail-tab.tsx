@@ -82,8 +82,8 @@ export function CellDetailTab() {
           <span className="material-symbols-outlined text-outline text-3xl">analytics</span>
         </div>
         <div>
-          <h2 className="text-xl font-bold text-on-surface">Nenhum dado consolidado</h2>
-          <p className="text-on-surface-variant">Faça upload dos arquivos para ver o detalhe por célula.</p>
+          <h2 className="text-xl font-bold text-on-surface">Nenhum arquivo importado</h2>
+          <p className="text-on-surface-variant">Faça upload dos dados para ver o detalhe por célula.</p>
         </div>
       </div>
     )
@@ -98,7 +98,7 @@ export function CellDetailTab() {
           <p className="font-body-lg text-body-lg text-on-surface-variant">Visão operacional detalhada por agrupamento logístico.</p>
         </div>
         <div className="hidden md:block text-right">
-           <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Periodo Auditoria</span>
+           <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Período Auditoria</span>
            <p className="text-sm font-mono font-bold text-primary">{formatDateBR(auditPeriod.start)} - {formatDateBR(auditPeriod.end)}</p>
         </div>
       </div>
@@ -162,7 +162,7 @@ export function CellDetailTab() {
               </div>
               <div className="mt-auto">
                 <span className="font-display-lg text-display-lg text-on-surface block leading-none">{formatNumber(activeCellSummary.totalRotas)}</span>
-                <span className="font-body-sm text-on-surface-variant mt-1 block">Volume planejado</span>
+                <span className="font-body-sm text-on-surface-variant mt-1 block tracking-tighter uppercase font-bold text-[9px]">Volume planejado</span>
               </div>
             </Card>
 
@@ -174,7 +174,7 @@ export function CellDetailTab() {
               </div>
               <div className="mt-auto">
                 <span className="font-display-lg text-display-lg text-error block leading-none">{formatNumber(activeCellSummary.pendencias)}</span>
-                <span className="font-body-sm text-on-surface-variant mt-1 block">Aguardando ação</span>
+                <span className="font-body-sm text-on-surface-variant mt-1 block tracking-tighter uppercase font-bold text-[9px]">Aguardando ação</span>
               </div>
             </Card>
 
@@ -182,11 +182,11 @@ export function CellDetailTab() {
             <Card className="bg-surface-container-lowest rounded-xl shadow-surface p-lg flex flex-col border border-outline-variant/30">
               <div className="flex items-center gap-2 mb-4 text-on-surface-variant">
                 <span className="material-symbols-outlined text-[20px]">receipt_long</span>
-                <h4 className="font-body-md text-on-surface-variant font-semibold">SCL*</h4>
+                <h4 className="font-body-md text-on-surface-variant font-semibold uppercase text-[11px] tracking-tighter">S. Contra Leite*</h4>
               </div>
               <div className="mt-auto">
                 <span className="font-display-lg text-display-lg text-on-surface block leading-none">{formatNumber(activeCellSummary.semContraLeite)}</span>
-                <span className="font-body-sm text-on-surface-variant mt-1 block">Doc. faltante</span>
+                <span className="font-body-sm text-on-surface-variant mt-1 block tracking-tighter uppercase font-bold text-[9px]">Doc. faltante</span>
               </div>
             </Card>
 
@@ -194,11 +194,11 @@ export function CellDetailTab() {
             <Card className="bg-surface-container-lowest rounded-xl shadow-surface p-lg flex flex-col border border-outline-variant/30">
               <div className="flex items-center gap-2 mb-4 text-on-surface-variant">
                 <span className="material-symbols-outlined text-[20px]">wrong_location</span>
-                <h4 className="font-body-md text-on-surface-variant font-semibold">KM Errado*</h4>
+                <h4 className="font-body-md text-on-surface-variant font-semibold">KM Incorreto*</h4>
               </div>
               <div className="mt-auto">
                 <span className="font-display-lg text-display-lg text-on-surface block leading-none">{formatNumber(activeCellSummary.kmErrado)}</span>
-                <span className="font-body-sm text-on-surface-variant mt-1 block">Desvios de rota</span>
+                <span className="font-body-sm text-on-surface-variant mt-1 block tracking-tighter uppercase font-bold text-[9px]">Desvios de rota</span>
               </div>
             </Card>
 
@@ -210,17 +210,17 @@ export function CellDetailTab() {
               </div>
               <div className="mt-auto">
                 <span className="font-display-lg text-display-lg text-error block leading-none">{formatNumber(activeCellSummary.regressoAntigo)}</span>
-                <span className="font-body-sm text-on-surface-variant mt-1 block">Atraso &gt; Ref.</span>
+                <span className="font-body-sm text-on-surface-variant mt-1 block tracking-tighter uppercase font-bold text-[9px]">Atraso &gt; Ref.</span>
               </div>
             </Card>
 
-            <div className="bg-surface-container-low rounded-xl p-lg flex items-center justify-center border border-dashed border-outline-variant/50">
+            <div className="bg-surface-container-low rounded-xl p-lg flex items-center justify-center border border-dashed border-outline-variant/50 opacity-40">
               <span className="font-body-sm text-outline uppercase font-bold tracking-tighter">Espaço Reservado</span>
             </div>
           </div>
 
           {/* Ranking Vertical Chart */}
-          <Card className="bg-surface-container-lowest rounded-xl shadow-surface border border-outline-variant/50 overflow-hidden">
+          <Card className="bg-surface-container-lowest rounded-xl shadow-surface border border-outline-variant/50 overflow-hidden text-on-surface">
             <CardHeader className="border-b border-outline-variant/30 px-lg py-md">
                <CardTitle className="text-sm font-bold uppercase tracking-wider text-on-surface-variant">Ranking de Encerramento por Planta</CardTitle>
             </CardHeader>
@@ -250,7 +250,7 @@ export function CellDetailTab() {
           {/* Health Indicator */}
           <div className="bg-surface-container-lowest rounded-xl shadow-surface p-lg flex flex-col items-center justify-center relative overflow-hidden h-[280px] border border-outline-variant/30">
             <div className={`absolute inset-0 opacity-10 ${activeCellSummary.percentualCritico > 10 ? 'bg-error' : 'bg-success'}`}></div>
-            <h3 className="font-headline-md text-headline-md text-on-surface mb-6 relative z-10 w-full text-left">Saúde da Célula {selectedCell}</h3>
+            <h3 className="font-headline-md text-headline-md text-on-surface mb-6 relative z-10 w-full text-left tracking-tight">Saúde da Célula {selectedCell}</h3>
             
             <div className="relative w-40 h-40 rounded-full flex items-center justify-center bg-surface-container-highest" 
                  style={{ background: `conic-gradient(${activeCellSummary.percentualCritico > 10 ? '#ba1a1a' : '#147832'} 0% ${activeCellSummary.percentualCritico}%, #e6e8ea ${activeCellSummary.percentualCritico}% 100%)` }}>
@@ -258,12 +258,12 @@ export function CellDetailTab() {
                 <span className={`font-headline-lg text-headline-lg leading-none ${activeCellSummary.percentualCritico > 10 ? 'text-error' : 'text-success'}`}>
                   {formatPercentage(activeCellSummary.percentualCritico)}
                 </span>
-                <span className="text-[10px] font-bold text-on-surface-variant uppercase mt-1">Crítico</span>
+                <span className="text-[10px] font-bold text-on-surface-variant uppercase mt-1 tracking-widest">Crítico</span>
               </div>
             </div>
-            <p className="font-label-md text-label-md text-on-surface-variant mt-4 text-center z-10 font-medium">
+            <p className="font-label-md text-label-md text-on-surface-variant mt-4 text-center z-10 font-medium leading-tight">
               Meta: &lt; 5% <br/> 
-              <span className={activeCellSummary.percentualCritico > 10 ? 'text-error font-bold animate-pulse' : 'text-success'}>
+              <span className={`text-[11px] uppercase tracking-wider ${activeCellSummary.percentualCritico > 10 ? 'text-error font-bold animate-pulse' : 'text-success font-bold'}`}>
                 {activeCellSummary.percentualCritico > 10 ? 'Ação Corretiva Necessária' : 'Operação Estável'}
               </span>
             </p>
@@ -272,21 +272,21 @@ export function CellDetailTab() {
           {/* Top Plants List */}
           <div className="bg-surface-container-lowest rounded-xl shadow-surface flex flex-col flex-1 border border-outline-variant/30 overflow-hidden">
             <div className="h-[56px] px-lg border-b border-outline-variant/30 flex items-center justify-between bg-surface-bright/30">
-              <h3 className="font-headline-md text-headline-md text-on-surface">Top Ofensoras</h3>
+              <h3 className="font-headline-md text-headline-md text-on-surface tracking-tight">Top Ofensoras</h3>
               <span className="material-symbols-outlined text-on-surface-variant">sort</span>
             </div>
-            <div className="p-0 flex-1 overflow-y-auto max-h-[400px]">
+            <div className="p-0 flex-1 overflow-y-auto max-h-[400px] divide-y divide-outline-variant/10 text-on-surface">
               {activeCellSummary.plantas
                 .sort((a, b) => b.totalCritico - a.totalCritico)
                 .slice(0, 8)
                 .map((p, idx) => (
-                  <div key={p.planta} className={`flex items-center justify-between px-lg py-4 border-b border-outline-variant/10 hover:bg-surface-container-low transition-colors cursor-default ${idx % 2 !== 0 ? 'bg-surface-bright/20' : ''}`}>
+                  <div key={p.planta} className={`flex items-center justify-between px-lg py-4 hover:bg-surface-container-low transition-colors cursor-default ${idx % 2 !== 0 ? 'bg-surface-bright/20' : ''}`}>
                     <div className="flex flex-col">
-                      <span className="font-label-lg text-label-lg text-on-surface truncate max-w-[180px]" title={p.planta}>{p.planta}</span>
-                      <span className="font-body-sm text-on-surface-variant">{p.pendencias} Pendentes</span>
+                      <span className="font-label-lg text-label-lg font-bold truncate max-w-[180px]" title={p.planta}>{p.planta}</span>
+                      <span className="font-body-sm text-[11px] text-on-surface-variant">{p.pendencias} Pendentes</span>
                     </div>
                     <div className="text-right">
-                      <span className={`font-headline-md text-headline-md ${p.percentualCritico > 20 ? 'text-error' : 'text-on-surface'}`}>
+                      <span className={`font-headline-md text-xl font-black ${p.percentualCritico > 20 ? 'text-error' : 'text-on-surface-variant'}`}>
                         {formatPercentage(p.percentualCritico)}
                       </span>
                     </div>
@@ -298,37 +298,37 @@ export function CellDetailTab() {
       </div>
 
       {/* Detailed Table Section */}
-      <Card className="bg-surface-container-lowest rounded-xl shadow-surface border border-outline-variant/50 overflow-hidden">
+      <Card className="bg-surface-container-lowest rounded-xl shadow-surface border border-outline-variant/50 overflow-hidden text-on-surface">
         <div className="h-[56px] px-lg border-b border-outline-variant/30 flex items-center justify-between bg-surface-bright/30">
-          <h3 className="font-headline-md text-headline-md text-on-surface">Resumo por Planta (Célula {selectedCell})</h3>
-          <span className="text-[10px] font-bold text-on-surface-variant uppercase">Listagem Completa</span>
+          <h3 className="font-headline-md text-headline-md text-on-surface tracking-tight">Resumo por Planta (Célula {selectedCell})</h3>
+          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest hidden sm:block">Listagem Completa</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-surface-container-low">
-                <th className="px-lg py-3 font-label-lg text-label-lg text-on-surface-variant font-medium">Planta</th>
-                <th className="px-lg py-3 font-label-lg text-label-lg text-on-surface-variant font-medium text-right">Total</th>
-                <th className="px-lg py-3 font-label-lg text-label-lg text-on-surface-variant font-medium text-right text-error">Pend.</th>
-                <th className="px-lg py-3 font-label-lg text-label-lg text-on-surface-variant font-medium text-right text-warning">SCL*</th>
-                <th className="px-lg py-3 font-label-lg text-label-lg text-on-surface-variant font-medium text-right text-orange">KM*</th>
-                <th className="px-lg py-3 font-label-lg text-label-lg text-on-surface-variant font-medium text-right text-error">Reg.A</th>
-                <th className="px-lg py-3 font-label-lg text-label-lg text-on-surface-variant font-medium text-right">% Enc.</th>
+                <th className="px-lg py-3 font-label-lg text-[10px] uppercase font-bold text-on-surface-variant">Planta</th>
+                <th className="px-lg py-3 font-label-lg text-[10px] uppercase font-bold text-on-surface-variant text-right">Total</th>
+                <th className="px-lg py-3 font-label-lg text-[10px] uppercase font-bold text-error text-right">Pend.</th>
+                <th className="px-lg py-3 font-label-lg text-[10px] uppercase font-bold text-warning text-right">SCL*</th>
+                <th className="px-lg py-3 font-label-lg text-[10px] uppercase font-bold text-orange text-right">KM*</th>
+                <th className="px-lg py-3 font-label-lg text-[10px] uppercase font-bold text-error text-right">Reg.A</th>
+                <th className="px-lg py-3 font-label-lg text-[10px] uppercase font-bold text-on-surface-variant text-right">% Enc.</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-outline-variant/10">
               {activeCellSummary.plantas.sort((a,b) => a.percentualEncerramento - b.percentualEncerramento).map((p, idx) => {
                 const pInScope = plantIndicatorStats.find(s => s.planta === p.planta)
                 return (
-                  <tr key={p.planta} className={`border-b border-outline-variant/10 hover:bg-surface-container-low transition-colors group ${idx % 2 !== 0 ? 'bg-surface-bright/10' : ''}`}>
+                  <tr key={p.planta} className={`hover:bg-surface-container-low transition-colors group ${idx % 2 !== 0 ? 'bg-surface-bright/10' : ''}`}>
                     <td className="px-lg py-4 font-bold text-on-surface">{p.planta}</td>
-                    <td className="px-lg py-4 text-right text-on-surface-variant">{formatNumber(p.totalRotas)}</td>
-                    <td className="px-lg py-4 text-right text-error font-bold">{formatNumber(p.pendencias)}</td>
-                    <td className="px-lg py-4 text-right text-warning font-semibold">{formatNumber(pInScope?.semContraLeite || 0)}</td>
-                    <td className="px-lg py-4 text-right text-orange font-semibold">{formatNumber(pInScope?.kmErrado || 0)}</td>
-                    <td className="px-lg py-4 text-right text-error">{formatNumber(p.regressoAntigo)}</td>
+                    <td className="px-lg py-4 text-right text-on-surface-variant font-medium">{formatNumber(p.totalRotas)}</td>
+                    <td className="px-lg py-4 text-right text-error font-black">{formatNumber(p.pendencias)}</td>
+                    <td className="px-lg py-4 text-right text-warning font-bold">{formatNumber(pInScope?.semContraLeite || 0)}</td>
+                    <td className="px-lg py-4 text-right text-orange font-bold">{formatNumber(pInScope?.kmErrado || 0)}</td>
+                    <td className="px-lg py-4 text-right text-error font-medium">{formatNumber(p.regressoAntigo)}</td>
                     <td className="px-lg py-4 text-right">
-                      <span className={`px-2 py-1 rounded-full font-bold text-xs ${getPercentageColor(p.percentualEncerramento)} text-on-primary`}>
+                      <span className={`px-2 py-1 rounded-full font-bold text-[10px] shadow-sm ${getPercentageColor(p.percentualEncerramento)} text-on-primary`}>
                         {formatPercentage(p.percentualEncerramento)}
                       </span>
                     </td>

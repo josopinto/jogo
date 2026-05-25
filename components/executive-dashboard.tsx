@@ -77,8 +77,8 @@ export function ExecutiveDashboard() {
 
   const pieData = useMemo(() => [
     { name: 'Encerradas', value: summary.encerradas, color: STATUS_COLORS.encerradas },
-    { name: 'Pendencias', value: summary.pendencias, color: STATUS_COLORS.pendencias },
-    { name: 'Em Execucao', value: summary.emExecucao, color: STATUS_COLORS.emExecucao },
+    { name: 'Pendências', value: summary.pendencias, color: STATUS_COLORS.pendencias },
+    { name: 'Em Execução', value: summary.emExecucao, color: STATUS_COLORS.emExecucao },
     { name: 'Previsto', value: summary.previsto, color: STATUS_COLORS.previsto },
     { name: 'Regresso Antigo', value: summary.regressoAntigo, color: STATUS_COLORS.regresso }
   ].filter(d => d.value > 0), [summary])
@@ -87,7 +87,7 @@ export function ExecutiveDashboard() {
     return summary.cells.map(cell => ({
       name: `C${cell.celula}`,
       Encerradas: cell.encerradas,
-      Pendencias: cell.pendencias
+      Pendências: cell.pendencias
     }))
   }, [summary])
 
@@ -110,8 +110,8 @@ export function ExecutiveDashboard() {
           <span className="material-symbols-outlined text-outline text-3xl">settings_suggest</span>
         </div>
         <div>
-          <h2 className="text-xl font-bold text-on-surface">Nenhum dado importado</h2>
-          <p className="text-on-surface-variant">Faça upload dos arquivos do KMM para visualizar os indicadores.</p>
+          <h2 className="text-xl font-bold text-on-surface">Nenhum arquivo importado</h2>
+          <p className="text-on-surface-variant">Faça upload dos dados do KMM na aba Importação para visualizar os indicadores.</p>
         </div>
       </div>
     )
@@ -123,7 +123,7 @@ export function ExecutiveDashboard() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-surface-container-lowest p-lg rounded-xl border border-outline-variant/30 shadow-surface">
          <div className="flex flex-wrap gap-gutter items-center">
             <div className="space-y-xs">
-              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Periodo Auditoria</span>
+              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Período Auditoria</span>
               <div className="flex gap-2">
                 <Input type="date" value={auditPeriod.start || ''} onChange={e => setAuditPeriod(e.target.value, auditPeriod.end)} className="h-9 w-36 text-xs bg-surface border-outline-variant" />
                 <Input type="date" value={auditPeriod.end || ''} onChange={e => setAuditPeriod(auditPeriod.start, e.target.value)} className="h-9 w-36 text-xs bg-surface border-outline-variant" />
@@ -144,7 +144,7 @@ export function ExecutiveDashboard() {
             </div>
          </div>
          <div className="text-right border-l border-outline-variant/30 pl-lg hidden lg:block">
-            <span className="text-[10px] font-bold text-on-surface-variant uppercase block tracking-widest">Referencia Auditoria</span>
+            <span className="text-[10px] font-bold text-on-surface-variant uppercase block tracking-widest">Referência Auditoria</span>
             <span className="text-sm font-bold text-primary font-mono">{formatDateBR(referenceDate)}</span>
          </div>
       </div>
@@ -156,7 +156,7 @@ export function ExecutiveDashboard() {
             <span className="material-symbols-outlined text-[90px]">route</span>
           </div>
           <CardHeader className="p-0 space-y-0 relative z-10">
-            <CardTitle className="font-label-lg text-label-lg text-on-surface-variant uppercase tracking-wider">Total Rotas</CardTitle>
+            <CardTitle className="font-label-lg text-[11px] text-on-surface-variant uppercase tracking-wider font-bold">Total de Rotas</CardTitle>
           </CardHeader>
           <CardContent className="p-0 relative z-10">
             <div className="font-data-display text-2xl font-bold text-primary">{formatNumber(summary.totalRotas)}</div>
@@ -168,7 +168,7 @@ export function ExecutiveDashboard() {
             <span className="material-symbols-outlined text-[90px]">pending_actions</span>
           </div>
           <CardHeader className="p-0 space-y-0 relative z-10">
-            <CardTitle className="font-label-lg text-label-lg text-on-surface-variant uppercase tracking-wider text-error">Pendentes</CardTitle>
+            <CardTitle className="font-label-lg text-[11px] text-error uppercase tracking-wider font-bold">Pendentes</CardTitle>
           </CardHeader>
           <CardContent className="p-0 relative z-10">
             <div className="font-data-display text-2xl font-bold text-error">{formatNumber(summary.pendencias)}</div>
@@ -180,7 +180,7 @@ export function ExecutiveDashboard() {
             <span className="material-symbols-outlined text-[90px]">receipt_long</span>
           </div>
           <CardHeader className="p-0 space-y-0 relative z-10">
-            <CardTitle className="font-label-lg text-label-lg text-on-surface-variant uppercase tracking-wider">Sem Contra Leite*</CardTitle>
+            <CardTitle className="font-label-lg text-[11px] text-warning uppercase tracking-wider font-bold">Sem Contra Leite*</CardTitle>
           </CardHeader>
           <CardContent className="p-0 relative z-10">
             <div className="font-data-display text-2xl font-bold text-warning">{formatNumber(indicatorStats.semContraLeite)}</div>
@@ -192,7 +192,7 @@ export function ExecutiveDashboard() {
             <span className="material-symbols-outlined text-[90px]">speed</span>
           </div>
           <CardHeader className="p-0 space-y-0 relative z-10">
-            <CardTitle className="font-label-lg text-label-lg text-on-surface-variant uppercase tracking-wider">KM Status*</CardTitle>
+            <CardTitle className="font-label-lg text-[11px] text-orange uppercase tracking-wider font-bold">KM Incorreto*</CardTitle>
           </CardHeader>
           <CardContent className="p-0 relative z-10">
             <div className="font-data-display text-2xl font-bold text-orange">{formatNumber(indicatorStats.kmErrado)}</div>
@@ -204,7 +204,7 @@ export function ExecutiveDashboard() {
             <span className="material-symbols-outlined text-[90px]">history</span>
           </div>
           <CardHeader className="p-0 space-y-0 relative z-10">
-            <CardTitle className="font-label-lg text-label-lg text-on-surface-variant uppercase tracking-wider">Reg. Antigo</CardTitle>
+            <CardTitle className="font-label-lg text-[11px] text-on-surface-variant uppercase tracking-wider font-bold tracking-tighter">Regresso Antigo</CardTitle>
           </CardHeader>
           <CardContent className="p-0 relative z-10">
             <div className="font-data-display text-2xl font-bold text-error">{formatNumber(summary.regressoAntigo)}</div>
@@ -214,7 +214,7 @@ export function ExecutiveDashboard() {
 
       {/* Main Charts */}
       <div className="grid gap-gutter lg:grid-cols-2">
-        <Card className="bg-surface-container-lowest rounded-xl shadow-surface border border-outline-variant/50 overflow-hidden">
+        <Card className="bg-surface-container-lowest rounded-xl shadow-surface border border-outline-variant/50 overflow-hidden text-on-surface">
           <CardHeader className="border-b border-outline-variant/10 px-lg py-md bg-surface-bright/30">
             <CardTitle className="text-sm font-bold uppercase tracking-wider text-on-surface-variant">Distribuição de Status</CardTitle>
             <CardDescription className="text-[10px]">VISÃO GERAL DA BASE DE AUDITORIA</CardDescription>
@@ -247,7 +247,7 @@ export function ExecutiveDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-surface-container-lowest rounded-xl shadow-surface border border-outline-variant/50 overflow-hidden">
+        <Card className="bg-surface-container-lowest rounded-xl shadow-surface border border-outline-variant/50 overflow-hidden text-on-surface">
           <CardHeader className="border-b border-outline-variant/10 px-lg py-md bg-surface-bright/30">
             <CardTitle className="text-sm font-bold uppercase tracking-wider text-on-surface-variant">Pendências por Célula</CardTitle>
             <CardDescription className="text-[10px]">COMPARATIVO DE ENCERRAMENTO D+0</CardDescription>
@@ -264,7 +264,7 @@ export function ExecutiveDashboard() {
                   />
                   <Legend verticalAlign="top" align="right" height={36} iconType="rect" />
                   <Bar dataKey="Encerradas" fill={STATUS_COLORS.encerradas} radius={[4, 4, 0, 0]} barSize={32} />
-                  <Bar dataKey="Pendencias" fill={STATUS_COLORS.pendencias} radius={[4, 4, 0, 0]} barSize={32} />
+                  <Bar dataKey="Pendências" fill={STATUS_COLORS.pendencias} radius={[4, 4, 0, 0]} barSize={32} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -272,7 +272,7 @@ export function ExecutiveDashboard() {
         </Card>
       </div>
 
-      <Card className="bg-surface-container-lowest rounded-xl shadow-surface border border-outline-variant/50 overflow-hidden">
+      <Card className="bg-surface-container-lowest rounded-xl shadow-surface border border-outline-variant/50 overflow-hidden text-on-surface">
         <CardHeader className="border-b border-outline-variant/10 px-lg py-md bg-surface-bright/30">
           <CardTitle className="text-sm font-bold uppercase tracking-wider text-on-surface-variant">Status KM por Célula</CardTitle>
           <CardDescription className="text-[10px]">INDICADORES NO ESCOPO: {indicatorScope.toUpperCase()}</CardDescription>
