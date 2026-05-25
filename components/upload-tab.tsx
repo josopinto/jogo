@@ -31,9 +31,9 @@ function parseExcelFile(file: File, celula: CellNumber): Promise<Route[]> {
         const data = e.target?.result
         const workbook = XLSX.read(data, { type: 'binary' })
         
-        // Procurar aba "Dados"
+        // Procurar aba "Dados" ou a primeira disponível
         const sheetName = workbook.SheetNames.find(name => 
-          name.toLowerCase() === 'dados'
+          name.toLowerCase() === 'dados' || name.toLowerCase() === 'planilha1'
         ) || workbook.SheetNames[0]
         
         const worksheet = workbook.Sheets[sheetName]
@@ -50,62 +50,62 @@ function parseExcelFile(file: File, celula: CellNumber): Promise<Route[]> {
           const firstCell = String(row[0] || '').trim()
           
           // Verifica se é uma linha de planta
-          if (firstCell.toLowerCase().startsWith('planta:')) {
-            currentPlanta = firstCell.replace(/planta:/i, '').trim()
+          // Formato esperado: "Planta: NOME DA PLANTA"
+          if (firstCell.toLowerCase().includes('planta:')) {
+            currentPlanta = firstCell.split(/planta:/i)[1].trim()
             continue
           }
           
-          // Verifica se é uma linha de dados (coluna A = "false" ou vazia)
-          if (firstCell === 'false' || firstCell === '' || firstCell === 'FALSE') {
-            const roteiro = String(row[1] || '').trim()
-            if (!roteiro) continue
-            
-            const status = String(row[2] || 'Previsto').trim() as RouteStatus
-            const eventos = String(row[3] || '').trim()
-            const placa = String(row[4] || '').trim()
-            const kmStatus = String(row[5] || 'OK').trim() as KmStatus
-            const dataInicioManual = row[6] ? String(row[6]) : null
-            const dataTerminoManual = row[7] ? String(row[7]) : null
-            const inicio = row[8] ? String(row[8]) : null
-            const termino = row[9] ? String(row[9]) : null
-            const observacao = String(row[10] || '').trim()
-            const litrosColetados = Number(row[11]) || 0
-            const litrosDescarregados = Number(row[12]) || 0
-            const kmPrevisto = Number(row[13]) || 0
-            const kmDiferenca = Number(row[14]) || 0
-            const kmPrevistoTotal = Number(row[15]) || 0
-            const kmRodadoTotal = Number(row[16]) || 0
-            const kmRodado = Number(row[17]) || 0
-            const kmFechamento = Number(row[18]) || 0
-            const kmRecebido = Number(row[19]) || 0
-            
-            routes.push({
-              id: `${celula}-${currentPlanta}-${i}-${Date.now()}`,
-              celula,
-              planta: currentPlanta || `Planta ${celula}`,
-              roteiro,
-              status: ['Encerrado', 'Com Pendências', 'Em execução', 'Previsto', 'Regresso'].includes(status) 
-                ? status 
-                : 'Previsto',
-              eventos,
-              placa,
-              kmStatus: ['OK', 'Rodado a mais', 'Rodado a menos'].includes(kmStatus) ? kmStatus : 'OK',
-              dataInicioManual,
-              dataTerminoManual,
-              inicio,
-              termino,
-              observacao,
-              litrosColetados,
-              litrosDescarregados,
-              kmPrevisto,
-              kmDiferenca,
-              kmPrevistoTotal,
-              kmRodadoTotal,
-              kmRodado,
-              kmFechamento,
-              kmRecebido
-            })
-          }
+          // Verifica se é uma linha de dados (coluna B - roteiro deve existir e não ser cabeçalho)
+          const roteiro = String(row[1] || '').trim()
+          if (!roteiro || roteiro.toLowerCase() === 'roteiro' || roteiro.toLowerCase().includes('total')) continue
+          
+          // Se chegamos aqui, é uma rota válida
+          const status = String(row[2] || 'Previsto').trim() as RouteStatus
+          const eventos = String(row[3] || '').trim()
+          const placa = String(row[4] || '').trim()
+          const kmStatus = String(row[5] || 'OK').trim() as KmStatus
+          const dataInicioManual = row[6] ? String(row[6]) : null
+          const dataTerminoManual = row[7] ? String(row[7]) : null
+          const inicio = row[8] ? String(row[8]) : null
+          const termino = row[9] ? String(row[9]) : null
+          const observacao = String(row[10] || '').trim()
+          const litrosColetados = Number(row[11]) || 0
+          const litrosDescarregados = Number(row[12]) || 0
+          const kmPrevisto = Number(row[13]) || 0
+          const kmDiferenca = Number(row[14]) || 0
+          const kmPrevistoTotal = Number(row[15]) || 0
+          const kmRodadoTotal = Number(row[16]) || 0
+          const kmRodado = Number(row[17]) || 0
+          const kmFechamento = Number(row[18]) || 0
+          const kmRecebido = Number(row[19]) || 0
+          
+          routes.push({
+            id: `${celula}-${currentPlanta}-${roteiro}-${i}`,
+            celula,
+            planta: currentPlanta || `Planta C${celula}`,
+            roteiro,
+            status: (['Encerrado', 'Com Pendências', 'Em execução', 'Previsto', 'Regresso'].includes(status) 
+              ? status 
+              : 'Previsto') as RouteStatus,
+            eventos,
+            placa,
+            kmStatus: (['OK', 'Rodado a mais', 'Rodado a menos'].includes(kmStatus) ? kmStatus : 'OK') as KmStatus,
+            dataInicioManual,
+            dataTerminoManual,
+            inicio,
+            termino,
+            observacao,
+            litrosColetados,
+            litrosDescarregados,
+            kmPrevisto,
+            kmDiferenca,
+            kmPrevistoTotal,
+            kmRodadoTotal,
+            kmRodado,
+            kmFechamento,
+            kmRecebido
+          })
         }
         
         resolve(routes)
@@ -120,7 +120,7 @@ function parseExcelFile(file: File, celula: CellNumber): Promise<Route[]> {
 }
 
 export function UploadTab() {
-  const { addRoutes, setLastUpload, uploadSummary, lastUpload } = useCCO()
+  const { addRoutes, setLastUpload, uploadSummary, lastUpload, referenceDate, setReferenceDate } = useCCO()
   const [files, setFiles] = useState<UploadState>({
     cell1: null,
     cell2: null,
@@ -141,6 +141,11 @@ export function UploadTab() {
   }, [])
 
   const handleProcess = useCallback(async () => {
+    if (!referenceDate) {
+      alert('Por favor, selecione uma Data de Referencia para o auditoria.')
+      return
+    }
+
     setProcessing(prev => ({ ...prev, isProcessing: true }))
     
     const cellNumbers: CellNumber[] = [1, 2, 3]
@@ -173,7 +178,7 @@ export function UploadTab() {
     
     setLastUpload(new Date().toLocaleString('pt-BR'))
     setProcessing(prev => ({ ...prev, isProcessing: false }))
-  }, [files, addRoutes, setLastUpload])
+  }, [files, addRoutes, setLastUpload, referenceDate])
 
   const hasFiles = files.cell1 || files.cell2 || files.cell3
 
@@ -182,8 +187,34 @@ export function UploadTab() {
       <TabHeader 
         title="Upload de Dados" 
         description="Faca upload dos arquivos Excel exportados do KMM para cada celula operacional"
-        showGlobalKpis={true}
+        showGlobalKpis={false}
       />
+
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="text-lg">Configuracao da Auditoria</CardTitle>
+          <CardDescription>Defina a data de referencia para calculo de Regresso Antigo</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-2 max-w-xs">
+            <label className="text-sm font-medium">Data de Referencia:</label>
+            <input
+              type="date"
+              className="px-3 py-2 rounded-md bg-secondary border border-border text-foreground text-sm"
+              value={referenceDate ? referenceDate.split('/').reverse().join('-') : ''}
+              onChange={(e) => {
+                if (e.target.value) {
+                  const [year, month, day] = e.target.value.split('-')
+                  setReferenceDate(`${day}/${month}/${year}`)
+                } else {
+                  setReferenceDate(null)
+                }
+              }}
+            />
+            <p className="text-xs text-muted-foreground">Rotas com status &quot;Regresso&quot; fora desta data serao contadas como pendencias.</p>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
         {([1, 2, 3] as CellNumber[]).map((celula) => (

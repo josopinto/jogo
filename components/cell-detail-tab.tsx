@@ -30,12 +30,12 @@ const CELL_DESCRIPTIONS: Record<CellNumber, string> = {
 }
 
 export function CellDetailTab() {
-  const { routes } = useCCO()
+  const { routes, referenceDate } = useCCO()
   const [selectedCell, setSelectedCell] = useState<CellNumber>(1)
 
   const cellSummary = useMemo(() => {
-    return calculateCellSummary(routes, selectedCell)
-  }, [routes, selectedCell])
+    return calculateCellSummary(routes, selectedCell, referenceDate)
+  }, [routes, selectedCell, referenceDate])
 
   // Dados para gráfico de barras horizontais do ranking
   const rankingData = useMemo(() => {
@@ -48,6 +48,22 @@ export function CellDetailTab() {
         fill: p.percentualEncerramento >= 95 ? '#00c9a7' : p.percentualEncerramento >= 90 ? '#ffd166' : '#ff6b6b'
       }))
   }, [cellSummary])
+
+  if (routes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-80 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
+          <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+          </svg>
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold">Nenhum arquivo importado</h2>
+          <p className="text-muted-foreground">Faça upload dos dados do KMM para visualizar o detalhe por célula.</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -114,8 +130,8 @@ export function CellDetailTab() {
             <CardTitle className="text-sm text-muted-foreground font-normal">Pendentes Total</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-danger">{formatNumber(cellSummary.pendencias + cellSummary.emExecucao + cellSummary.previsto + cellSummary.regresso)}</div>
-            <p className="text-xs text-muted-foreground mt-1">{cellSummary.pendencias} pend + {cellSummary.emExecucao} exec</p>
+            <div className="text-3xl font-bold text-danger">{formatNumber(cellSummary.pendencias)}</div>
+            <div className="text-xs text-muted-foreground mt-1">inclui regresso antigo e exec</div>
           </CardContent>
         </Card>
 
@@ -135,11 +151,11 @@ export function CellDetailTab() {
 
         <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground font-normal">Litros Coletados</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground font-normal">Regresso Antigo</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatNumber(cellSummary.litrosColetados)}</div>
-            <p className="text-xs text-muted-foreground mt-1">no periodo</p>
+            <div className="text-2xl font-bold text-danger">{formatNumber(cellSummary.regressoAntigo)}</div>
+            <p className="text-xs text-muted-foreground mt-1">fora da data ref.</p>
           </CardContent>
         </Card>
       </div>

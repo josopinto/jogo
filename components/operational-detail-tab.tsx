@@ -60,7 +60,7 @@ const INITIAL_FILTERS: Filters = {
 type QuickFilter = 'pendentes' | 'semContraLeite' | 'kmErrado' | 'regressoAntigo' | 'criticas' | null
 
 export function OperationalDetailTab() {
-  const { routes } = useCCO()
+  const { routes, referenceDate } = useCCO()
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS)
   const [quickFilter, setQuickFilter] = useState<QuickFilter>(null)
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
@@ -83,12 +83,12 @@ export function OperationalDetailTab() {
     return Array.from(placaSet).sort()
   }, [routes])
 
-  // Verifica se a data de regresso e antiga (nao e do dia atual)
+  // Verifica se a data de regresso e antiga (nao e a data de referencia)
   const isRegressoAntigo = (route: typeof routes[0]) => {
     if (route.status !== 'Regresso') return false
-    const today = new Date().toISOString().split('T')[0]
-    const routeDate = route.inicio?.split(' ')[0] || ''
-    return routeDate !== today
+    if (!referenceDate || !route.inicio) return false
+    const routeDate = route.inicio.split(' ')[0]
+    return routeDate !== referenceDate
   }
 
   // Rotas filtradas
@@ -97,7 +97,10 @@ export function OperationalDetailTab() {
 
     // Quick filters
     if (quickFilter === 'pendentes') {
-      result = result.filter(r => r.status !== 'Encerrado')
+      result = result.filter(r => 
+        ['Em execução', 'Com Pendências', 'Previsto'].includes(r.status) || 
+        isRegressoAntigo(r)
+      )
     } else if (quickFilter === 'semContraLeite') {
       result = result.filter(r => r.litrosDescarregados === 0)
     } else if (quickFilter === 'kmErrado') {
@@ -106,7 +109,7 @@ export function OperationalDetailTab() {
       result = result.filter(r => isRegressoAntigo(r))
     } else if (quickFilter === 'criticas') {
       result = result.filter(r => 
-        r.status !== 'Encerrado' && 
+        (['Em execução', 'Com Pendências', 'Previsto'].includes(r.status) || isRegressoAntigo(r)) && 
         (r.litrosDescarregados === 0 || r.kmStatus !== 'OK' || isRegressoAntigo(r))
       )
     }
@@ -120,7 +123,10 @@ export function OperationalDetailTab() {
     }
     if (filters.status !== 'all') {
       if (filters.status === 'pendente') {
-        result = result.filter(r => r.status !== 'Encerrado')
+        result = result.filter(r => 
+          ['Em execução', 'Com Pendências', 'Previsto'].includes(r.status) || 
+          isRegressoAntigo(r)
+        )
       } else {
         result = result.filter(r => r.status === filters.status)
       }
@@ -183,7 +189,7 @@ export function OperationalDetailTab() {
     }
 
     return result
-  }, [routes, filters, quickFilter, searchGlobal])
+  }, [routes, filters, quickFilter, searchGlobal, referenceDate])
 
   // Rotas ordenadas
   const sortedRoutes = useMemo(() => {
@@ -232,16 +238,16 @@ export function OperationalDetailTab() {
   // Contadores para quick filters
   const counts = useMemo(() => {
     return {
-      pendentes: routes.filter(r => r.status !== 'Encerrado').length,
+      pendentes: routes.filter(r => ['Em execução', 'Com Pendências', 'Previsto'].includes(r.status) || isRegressoAntigo(r)).length,
       semContraLeite: routes.filter(r => r.litrosDescarregados === 0).length,
       kmErrado: routes.filter(r => r.kmStatus !== 'OK').length,
       regressoAntigo: routes.filter(r => isRegressoAntigo(r)).length,
       criticas: routes.filter(r => 
-        r.status !== 'Encerrado' && 
+        (['Em execução', 'Com Pendências', 'Previsto'].includes(r.status) || isRegressoAntigo(r)) && 
         (r.litrosDescarregados === 0 || r.kmStatus !== 'OK' || isRegressoAntigo(r))
       ).length
     }
-  }, [routes])
+  }, [routes, referenceDate])
 
   // Verifica se ha filtros ativos
   const hasActiveFilters = useMemo(() => {
@@ -332,10 +338,12 @@ export function OperationalDetailTab() {
   }
 
   const getRowClassName = (route: typeof routes[0]) => {
-    if (route.status !== 'Encerrado' && (route.litrosDescarregados === 0 || isRegressoAntigo(route))) {
+    const isPendente = ['Em execução', 'Com Pendências', 'Previsto'].includes(route.status) || isRegressoAntigo(route)
+    
+    if (isPendente && (route.litrosDescarregados === 0 || route.kmStatus !== 'OK' || isRegressoAntigo(route))) {
       return 'bg-danger/15 border-l-4 border-l-danger'
     }
-    if (route.status !== 'Encerrado') {
+    if (isPendente) {
       return 'bg-danger/10'
     }
     if (route.litrosDescarregados === 0) {
@@ -345,6 +353,22 @@ export function OperationalDetailTab() {
       return 'bg-orange/10'
     }
     return ''
+  }
+
+  if (routes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-80 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
+          <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          </svg>
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold">Nenhum arquivo importado</h2>
+          <p className="text-muted-foreground">Faça upload dos dados do KMM para visualizar o detalhamento operacional.</p>
+        </div>
+      </div>
+    )
   }
 
   const getStatusBadge = (status: RouteStatus) => {

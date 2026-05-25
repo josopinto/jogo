@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react'
 import { useCCO } from './cco-context'
 import { TabHeader } from './tab-header'
 import { 
-  calculateGlobalSummary, 
+  calculateGlobalSummary,
+  calculatePlantSummary,
   filterRoutesByCell, 
   filterRoutesByDate,
   getWorstOperations,
@@ -60,7 +61,7 @@ const PROBLEM_COLORS = {
 }
 
 export function ExecutiveDashboard() {
-  const { routes } = useCCO()
+  const { routes, referenceDate } = useCCO()
   const [selectedCell, setSelectedCell] = useState<CellNumber | 'all'>('all')
   const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({
     start: null,
@@ -74,23 +75,24 @@ export function ExecutiveDashboard() {
     return filtered
   }, [routes, selectedCell, dateRange])
 
-  const summary = useMemo(() => calculateGlobalSummary(filteredRoutes), [filteredRoutes])
-  const worstOperations = useMemo(() => getWorstOperations(filteredRoutes, 10), [filteredRoutes])
+  const summary = useMemo(() => calculateGlobalSummary(filteredRoutes, referenceDate), [filteredRoutes, referenceDate])
+  const worstOperations = useMemo(() => getWorstOperations(filteredRoutes, 10, referenceDate), [filteredRoutes, referenceDate])
 
   // Dados para grafico de barras empilhadas por planta
   const stackedBarData = useMemo(() => {
     const plants = [...new Set(filteredRoutes.map(r => r.planta))]
     return plants.map(planta => {
       const plantRoutes = filteredRoutes.filter(r => r.planta === planta)
+      const plantSummary = calculatePlantSummary(filteredRoutes, planta, plantRoutes[0]?.celula || 1, referenceDate)
       return {
         name: planta.length > 20 ? planta.substring(0, 18) + '...' : planta,
         fullName: planta,
-        Encerradas: plantRoutes.filter(r => r.status === 'Encerrado').length,
-        Pendencias: plantRoutes.filter(r => r.status === 'Com Pendências').length,
-        EmExecucao: plantRoutes.filter(r => r.status === 'Em execução').length
+        Encerradas: plantSummary.encerradas,
+        Pendencias: plantSummary.pendencias,
+        EmExecucao: plantSummary.emExecucao
       }
     }).sort((a, b) => b.Encerradas - a.Encerradas).slice(0, 12)
-  }, [filteredRoutes])
+  }, [filteredRoutes, referenceDate])
 
   // Dados para grafico de pizza de status
   const pieData = useMemo(() => [
@@ -98,7 +100,7 @@ export function ExecutiveDashboard() {
     { name: 'Pendencias', value: summary.pendencias, color: STATUS_COLORS.pendencias },
     { name: 'Em Execucao', value: summary.emExecucao, color: STATUS_COLORS.emExecucao },
     { name: 'Previsto', value: summary.previsto, color: STATUS_COLORS.previsto },
-    { name: 'Regresso', value: summary.regresso, color: STATUS_COLORS.regresso }
+    { name: 'Regresso Antigo', value: summary.regressoAntigo, color: STATUS_COLORS.regresso }
   ].filter(d => d.value > 0), [summary])
 
   // Dados para grafico de KM por celula
@@ -119,32 +121,33 @@ export function ExecutiveDashboard() {
       Pendencias: cell.pendencias,
       EmExecucao: cell.emExecucao,
       Previsto: cell.previsto,
-      Regresso: cell.regresso
+      Regresso: cell.regressoAntigo
     }))
   }, [summary])
 
   // Top 10 operacoes com maior volume de pendencias
   const topPendenciasData = useMemo(() => {
-    const plantData = [...new Set(filteredRoutes.map(r => r.planta))].map(planta => {
+    const plantSummaries = [...new Set(filteredRoutes.map(r => r.planta))].map(planta => {
       const plantRoutes = filteredRoutes.filter(r => r.planta === planta)
-      return {
-        name: planta.length > 25 ? planta.substring(0, 23) + '...' : planta,
-        fullName: planta,
-        pendentes: plantRoutes.filter(r => r.status !== 'Encerrado').length,
-        total: plantRoutes.length
-      }
+      return calculatePlantSummary(filteredRoutes, planta, plantRoutes[0]?.celula || 1, referenceDate)
     })
-    return plantData
-      .filter(p => p.pendentes > 0)
-      .sort((a, b) => b.pendentes - a.pendentes)
+    return plantSummaries
+      .filter(p => p.pendencias > 0)
+      .sort((a, b) => b.pendencias - a.pendencias)
+      .map(p => ({
+        name: p.planta.length > 25 ? p.planta.substring(0, 23) + '...' : p.planta,
+        fullName: p.planta,
+        pendentes: p.pendencias,
+        total: p.totalRotas
+      }))
       .slice(0, 10)
-  }, [filteredRoutes])
+  }, [filteredRoutes, referenceDate])
 
   // Distribuicao por tipo de problema
   const problemDistributionData = useMemo(() => [
     { 
       name: 'Pendentes', 
-      value: summary.pendencias + summary.emExecucao + summary.previsto + summary.regresso, 
+      value: summary.pendencias, 
       color: PROBLEM_COLORS.pendentes 
     },
     { 
@@ -181,7 +184,23 @@ export function ExecutiveDashboard() {
   }, [worstOperations])
 
   // Totais para pendentes
-  const totalPendentes = summary.pendencias + summary.emExecucao + summary.previsto + summary.regresso
+  const totalPendentes = summary.pendencias
+
+  if (routes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-80 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
+          <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold">Nenhum arquivo importado</h2>
+          <p className="text-muted-foreground">Faça upload dos dados do KMM para visualizar o painel geral.</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

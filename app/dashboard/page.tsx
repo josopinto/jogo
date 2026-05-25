@@ -7,9 +7,10 @@ import { ExecutiveDashboard } from '@/components/executive-dashboard'
 import { CellDetailTab } from '@/components/cell-detail-tab'
 import { OperationalDetailTab } from '@/components/operational-detail-tab'
 import { ActionPlanTab } from '@/components/action-plan-tab'
+import { SummaryTab } from '@/components/summary-tab'
 import { calculateGlobalSummary, formatPercentage, formatNumber } from '@/lib/data-utils'
 
-type TabId = 'upload' | 'executive' | 'cell' | 'operational' | 'action'
+type TabId = 'upload' | 'summary' | 'executive' | 'cell' | 'operational' | 'action'
 
 interface Tab {
   id: TabId
@@ -28,8 +29,17 @@ const tabs: Tab[] = [
     )
   },
   { 
+    id: 'summary', 
+    label: 'Resumo', 
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    )
+  },
+  { 
     id: 'executive', 
-    label: 'Visao Executiva', 
+    label: 'Visao Geral', 
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -66,12 +76,12 @@ const tabs: Tab[] = [
 ]
 
 function DashboardContent() {
-  const [activeTab, setActiveTab] = useState<TabId>('executive')
-  const { routes, uploadSummary } = useCCO()
+  const [activeTab, setActiveTab] = useState<TabId>('summary')
+  const { routes, uploadSummary, referenceDate } = useCCO()
   
-  const summary = useMemo(() => calculateGlobalSummary(routes), [routes])
+  const summary = useMemo(() => calculateGlobalSummary(routes, referenceDate), [routes, referenceDate])
   const totalRoutes = uploadSummary.cell1 + uploadSummary.cell2 + uploadSummary.cell3
-  const pendentesTotal = summary.pendencias + summary.emExecucao + summary.previsto + summary.regresso
+  const pendentesTotal = summary.pendencias
 
   return (
     <div className="dark min-h-screen bg-background text-foreground">
@@ -93,6 +103,13 @@ function DashboardContent() {
             
             {/* KPIs Resumidos no Header */}
             <div className="hidden lg:flex items-center gap-4">
+              {referenceDate && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                  <span className="text-xs text-muted-foreground">Ref:</span>
+                  <span className="text-sm font-bold text-primary">{referenceDate}</span>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
                 <div className={`w-2 h-2 rounded-full ${summary.percentualEncerramento >= 95 ? 'bg-success' : summary.percentualEncerramento >= 90 ? 'bg-warning' : 'bg-danger animate-pulse'}`} />
                 <span className="text-xs text-muted-foreground">Encerramento:</span>
@@ -103,7 +120,7 @@ function DashboardContent() {
               
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
                 <span className="text-xs text-muted-foreground">Total:</span>
-                <span className="text-sm font-bold text-foreground">{formatNumber(totalRoutes)}</span>
+                <span className="text-sm font-bold text-foreground">{formatNumber(summary.totalRotas)}</span>
               </div>
               
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
@@ -147,7 +164,7 @@ function DashboardContent() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-muted-foreground">Total: <strong className="text-foreground">{formatNumber(totalRoutes)}</strong></span>
+            <span className="text-muted-foreground">Total: <strong className="text-foreground">{formatNumber(summary.totalRotas)}</strong></span>
             <span className="text-muted-foreground">Pend: <strong className="text-danger">{formatNumber(pendentesTotal)}</strong></span>
           </div>
         </div>
@@ -156,6 +173,7 @@ function DashboardContent() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         {activeTab === 'upload' && <UploadTab />}
+        {activeTab === 'summary' && <SummaryTab />}
         {activeTab === 'executive' && <ExecutiveDashboard />}
         {activeTab === 'cell' && <CellDetailTab />}
         {activeTab === 'operational' && <OperationalDetailTab />}

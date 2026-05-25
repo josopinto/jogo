@@ -7,10 +7,12 @@ import { INITIAL_STATE, INITIAL_ROUTES } from '@/lib/initial-data'
 interface CCOContextType {
   routes: Route[]
   lastUpload: string | null
+  referenceDate: string | null
   uploadSummary: { cell1: number; cell2: number; cell3: number }
   addRoutes: (newRoutes: Route[], celula: CellNumber) => void
   clearCellRoutes: (celula: CellNumber) => void
   setLastUpload: (date: string) => void
+  setReferenceDate: (date: string | null) => void
 }
 
 const CCOContext = createContext<CCOContextType | undefined>(undefined)
@@ -55,15 +57,24 @@ export function CCOProvider({ children }: { children: ReactNode }) {
     }))
   }, [])
 
+  const setReferenceDate = useCallback((date: string | null) => {
+    setState(prev => ({
+      ...prev,
+      referenceDate: date
+    }))
+  }, [])
+
   return (
     <CCOContext.Provider
       value={{
         routes: state.routes,
         lastUpload: state.lastUpload,
+        referenceDate: state.referenceDate,
         uploadSummary: state.uploadSummary,
         addRoutes,
         clearCellRoutes,
-        setLastUpload
+        setLastUpload,
+        setReferenceDate
       }}
     >
       {children}

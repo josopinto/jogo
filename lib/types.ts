@@ -70,6 +70,7 @@ export interface GlobalSummary {
   emExecucao: number
   previsto: number
   regresso: number
+  regressoAntigo: number
   percentualEncerramento: number
   kmOk: number
   kmMais: number
@@ -77,6 +78,8 @@ export interface GlobalSummary {
   litrosColetados: number
   semContraLeite: number
   kmIncorreto: number
+  totalCritico: number
+  percentualCritico: number
   cells: CellSummary[]
 }
 
@@ -115,6 +118,7 @@ export interface LegacyActionPlan {
 export interface AppState {
   routes: Route[]
   lastUpload: string | null
+  referenceDate: string | null
   uploadSummary: {
     cell1: number
     cell2: number
