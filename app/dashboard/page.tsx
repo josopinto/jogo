@@ -8,7 +8,7 @@ import { CellDetailTab } from '@/components/cell-detail-tab'
 import { OperationalDetailTab } from '@/components/operational-detail-tab'
 import { ActionPlanTab } from '@/components/action-plan-tab'
 import { SummaryTab } from '@/components/summary-tab'
-import { calculateGlobalSummary, formatPercentage, formatNumber } from '@/lib/data-utils'
+import { calculateGlobalSummary, formatPercentage, formatNumber, filterRoutesByAuditPeriod, applyStatusScope } from '@/lib/data-utils'
 
 type TabId = 'upload' | 'summary' | 'executive' | 'cell' | 'operational' | 'action'
 
@@ -92,6 +92,9 @@ function DashboardContent() {
   }, [routesInAudit, indicatorScope, referenceDate])
   
   const indicatorStats = useMemo(() => calculateGlobalSummary(routesInScope, referenceDate), [routesInScope, referenceDate])
+
+  const totalRoutes = summary.totalRotas
+  const pendentesTotal = summary.pendencias
 
   return (
     <div className="dark min-h-screen bg-background text-foreground">

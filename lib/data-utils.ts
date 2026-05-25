@@ -79,21 +79,66 @@ export function isKmStatusIncorreto(route: Route): boolean {
   return route.kmStatus === 'Rodado a mais' || route.kmStatus === 'Rodado a menos'
 }
 
+/**
+ * Converte string de data para objeto Date de forma segura para comparacoes
+ */
+export function parseDateSafely(input: any): Date | null {
+  if (!input) return null
+  if (input instanceof Date) return isNaN(input.getTime()) ? null : input
+
+  const s = String(input).trim()
+  if (!s) return null
+
+  // Tentar DD/MM/YYYY
+  if (s.includes('/')) {
+    const parts = s.split(' ')[0].split('/')
+    if (parts.length === 3) {
+      const d = parseInt(parts[0], 10)
+      const m = parseInt(parts[1], 10) - 1
+      const y = parseInt(parts[2], 10)
+      const date = new Date(y, m, d)
+      if (!isNaN(date.getTime())) return date
+    }
+  }
+
+  // Tentar YYYY-MM-DD
+  if (s.includes('-')) {
+    const parts = s.split(' ')[0].split('-')
+    if (parts.length === 3) {
+      const date = parts[0].length === 4 
+        ? new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+        : new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]))
+      if (!isNaN(date.getTime())) return date
+    }
+  }
+
+  const fallback = new Date(s)
+  return isNaN(fallback.getTime()) ? null : fallback
+}
+
 // --- FILTROS ---
 
-export function filterRoutesByAuditPeriod(routes: Route[], start: string | null, end: string | null): Route[] {
-  if (!start && !end) return routes
+export function filterRoutesByAuditPeriod(routes: Route[], startStr: string | null, endStr: string | null): Route[] {
+  if (!Array.isArray(routes)) return []
+  if (!startStr && !endStr) return routes
   
-  return routes.filter(r => {
-    // Se o sistema não tem dataAuditoria (dados legados), permite passar
-    if (!r.dataAuditoriaInicio) return true
-    
-    // Comparação simples de string YYYY-MM-DD se possível, ou conversão
-    const rStart = r.dataAuditoriaInicio
-    const rEnd = r.dataAuditoriaFim
+  const start = startStr ? parseDateSafely(startStr) : null
+  const end = endStr ? parseDateSafely(endStr) : null
 
-    if (start && rStart && rStart < start) return false
-    if (end && rEnd && rEnd > end) return false
+  return routes.filter(r => {
+    // Buscar data de auditoria em diversos campos possiveis para maior compatibilidade
+    const auditDateRaw = (r as any).dataAuditoria || 
+                         (r as any).auditDate || 
+                         r.dataAuditoriaInicio || 
+                         (r as any).auditStartDate
+
+    if (!auditDateRaw) return true // Se nao tem data, nao filtra (defensivo)
+    
+    const parsed = parseDateSafely(auditDateRaw)
+    if (!parsed) return true
+
+    if (start && parsed < start) return false
+    if (end && parsed > end) return false
     
     return true
   })
