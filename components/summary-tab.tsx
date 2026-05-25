@@ -5,12 +5,17 @@ import { useCCO } from './cco-context'
 import { TabHeader } from './tab-header'
 import { 
   calculateGlobalSummary, 
+  calculateCellSummary,
   getWorstOperations, 
   formatNumber, 
   formatPercentage,
   getPercentageTextColor,
+  getPercentageColor,
   filterRoutesByAuditPeriod,
-  applyStatusScope
+  applyStatusScope,
+  formatDateBR,
+  isSemContraLeite,
+  isKmStatusIncorreto
 } from '@/lib/data-utils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -34,23 +39,39 @@ export function SummaryTab() {
     setIndicatorScope 
   } = useCCO()
   
+  // --- HOOKS (Todos antes de qualquer return) ---
+
   // 1. Filtrar rotas pelo período de auditoria selecionado
   const routesInAudit = useMemo(() => {
     return filterRoutesByAuditPeriod(routes, auditPeriod.start, auditPeriod.end)
   }, [routes, auditPeriod])
 
   // 2. Aplicar escopo para indicadores de Sem Contra Leite e KM Status
-  // Note: Total de rotas e Pendências são sempre sobre a base completa do período de auditoria
   const routesForIndicators = useMemo(() => {
     return applyStatusScope(routesInAudit, indicatorScope, referenceDate)
   }, [routesInAudit, indicatorScope, referenceDate])
 
-  // Sumários
+  // 3. Sumários
   const summary = useMemo(() => calculateGlobalSummary(routesInAudit, referenceDate), [routesInAudit, referenceDate])
   const indicatorStats = useMemo(() => calculateGlobalSummary(routesForIndicators, referenceDate), [routesForIndicators, referenceDate])
   const worstOperations = useMemo(() => getWorstOperations(routesInAudit, 10, referenceDate), [routesInAudit, referenceDate])
 
+  // 4. Texto automático de leitura rápida
+  const quickReadText = useMemo(() => {
+    if (summary.totalRotas === 0) return "Nenhuma rota encontrada para o período selecionado."
+    
+    const validCells = summary.cells.filter(c => c.totalRotas > 0)
+    if (validCells.length === 0) return "Aguardando processamento de dados..."
+
+    const mostPendingCell = [...validCells].sort((a, b) => b.pendencias - a.pendencias)[0]
+    const top3Critical = worstOperations.slice(0, 3).map(op => op.planta).join(', ')
+    
+    return `Foram analisadas ${formatNumber(summary.totalRotas)} rotas no período de auditoria selecionado. A célula com maior volume de pendências foi a Célula ${mostPendingCell.celula}. As operações mais críticas são ${top3Critical}. Os principais pontos de atenção são sem contra leite, rotas pendentes e KM Status errado.`
+  }, [summary, worstOperations])
+
   const isEmpty = routes.length === 0
+
+  // --- RENDERS ---
 
   if (isEmpty) {
     return (
@@ -67,16 +88,6 @@ export function SummaryTab() {
       </div>
     )
   }
-
-  // Texto automático de leitura rápida
-  const quickReadText = useMemo(() => {
-    if (summary.totalRotas === 0) return "Nenhuma rota encontrada para o período selecionado."
-    
-    const mostPendingCell = [...summary.cells].sort((a, b) => b.pendencias - a.pendencias)[0]
-    const top3Critical = worstOperations.slice(0, 3).map(op => op.planta).join(', ')
-    
-    return `Foram analisadas ${formatNumber(summary.totalRotas)} rotas no período de auditoria selecionado. A célula com maior volume de pendências foi a Célula ${mostPendingCell.celula}. As operações mais críticas são ${top3Critical}. Os principais pontos de atenção são sem contra leite, rotas pendentes e KM Status errado.`
-  }, [summary, worstOperations])
 
   return (
     <div className="space-y-6">
@@ -116,12 +127,11 @@ export function SummaryTab() {
 
           <div className="space-y-1.5 text-right">
              <p className="text-[10px] text-muted-foreground uppercase font-bold">Data de Referencia Atual:</p>
-             <p className="text-sm font-mono font-bold text-primary">{referenceDate || 'Nao definida'}</p>
+             <p className="text-sm font-mono font-bold text-primary">{formatDateBR(referenceDate)}</p>
           </div>
         </div>
       </div>
 
-      {/* A) Objetivo do projeto */}
       <Card className="bg-primary/5 border-primary/20">
         <CardContent className="pt-4">
           <p className="text-sm text-foreground/80 leading-relaxed italic">
@@ -130,7 +140,6 @@ export function SummaryTab() {
         </CardContent>
       </Card>
 
-      {/* B) Cards principais */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
         <Card className="bg-card">
           <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between">
@@ -150,7 +159,7 @@ export function SummaryTab() {
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <div className="text-2xl font-bold text-danger">{formatNumber(summary.pendencias)}</div>
-            <p className="text-xs font-semibold text-danger/80">{formatPercentage(summary.percentualEncerramento === 100 ? 0 : 100 - summary.percentualEncerramento)} do total</p>
+            <p className="text-xs font-semibold text-danger/80">{formatPercentage(summary.totalRotas > 0 ? (summary.pendencias / summary.totalRotas) * 100 : 0)} do total</p>
           </CardContent>
         </Card>
 
@@ -171,8 +180,8 @@ export function SummaryTab() {
             <span className="text-[10px] bg-orange/10 px-1.5 rounded text-orange font-bold capitalize">{indicatorScope === 'all' ? 'Todas' : indicatorScope === 'pending' ? 'Pendentes' : 'Encerradas'}</span>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <div className="text-2xl font-bold text-orange">{formatNumber(indicatorStats.kmIncorreto)}</div>
-            <p className="text-xs font-semibold text-orange/80">{formatPercentage(summary.totalRotas > 0 ? (indicatorStats.kmIncorreto / summary.totalRotas) * 100 : 0)} do total</p>
+            <div className="text-2xl font-bold text-orange">{formatNumber(indicatorStats.kmErrado)}</div>
+            <p className="text-xs font-semibold text-orange/80">{formatPercentage(summary.totalRotas > 0 ? (indicatorStats.kmErrado / summary.totalRotas) * 100 : 0)} do total</p>
           </CardContent>
         </Card>
 
@@ -189,7 +198,6 @@ export function SummaryTab() {
         </Card>
       </div>
 
-      {/* E) Texto automático de leitura rápida */}
       <Card className="bg-secondary/20 border-border">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -207,7 +215,6 @@ export function SummaryTab() {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-1">
-        {/* C) Resumo por célula */}
         <Card className="bg-card border-border">
           <CardHeader className="pb-3 border-b border-border mb-4">
             <CardTitle className="text-base font-bold">Resumo por Célula Importada</CardTitle>
@@ -228,7 +235,6 @@ export function SummaryTab() {
               </TableHeader>
               <TableBody>
                 {summary.cells.filter(c => c.totalRotas > 0).map((cell) => {
-                  // Calcular indicadores por escopo para a célula
                   const cellRoutesInScope = applyStatusScope(
                     routesInAudit.filter(r => r.celula === cell.celula),
                     indicatorScope,
@@ -262,7 +268,6 @@ export function SummaryTab() {
           </CardContent>
         </Card>
 
-        {/* D) Operações mais críticas */}
         <Card className="bg-card border-border">
           <CardHeader className="pb-3 border-b border-border mb-4">
             <CardTitle className="text-base font-bold">Operações Mais Críticas (TOP 10)</CardTitle>

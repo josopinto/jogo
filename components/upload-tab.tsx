@@ -7,7 +7,7 @@ import { useCCO } from './cco-context'
 import { TabHeader } from './tab-header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { formatNumber, formatToBrazillianDate } from '@/lib/data-utils'
+import { formatNumber, normalizeDateToISO, formatDateBR } from '@/lib/data-utils'
 import { Input } from '@/components/ui/input'
 
 interface UploadState {
@@ -54,7 +54,6 @@ function parseExcelFile(
         const data = e.target?.result
         const workbook = XLSX.read(data, { type: 'binary' })
         
-        // Procurar aba "Dados" ou a primeira
         const sheetName = workbook.SheetNames.find(name => 
           ['dados', 'planilha1', 'sheet1'].includes(name.toLowerCase())
         ) || workbook.SheetNames[0]
@@ -67,7 +66,6 @@ function parseExcelFile(
           return
         }
 
-        // Identificar cabeçalho (pode estar em diversas linhas, vamos procurar a que tem "Roteiro")
         let headerRowIndex = jsonData.findIndex(row => 
           row.some(cell => String(cell || '').trim().toLowerCase() === 'roteiro')
         )
@@ -91,14 +89,12 @@ function parseExcelFile(
         let currentPlanta = ''
         const uploadId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
         
-        // Processar a partir do cabeçalho
         for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
           const row = jsonData[i]
           if (!row || row.length === 0) continue
           
           const firstCellValue = String(row[0] || '').trim()
           
-          // Captura de Planta (ex: "Planta: DPA - ARARAS")
           if (firstCellValue.toLowerCase().includes('planta:')) {
             currentPlanta = firstCellValue.split(/planta:/i)[1].trim()
             continue
@@ -107,19 +103,17 @@ function parseExcelFile(
           const roteiro = idx.roteiro !== -1 ? String(row[idx.roteiro] || '').trim() : ''
           const status = idx.status !== -1 ? String(row[idx.status] || 'Previsto').trim() as RouteStatus : 'Previsto'
           
-          // Validação de rota mínima
           if (!roteiro || roteiro.toLowerCase() === 'roteiro' || roteiro.toLowerCase().includes('total')) {
             continue
           }
 
-          // Se não tem status válido e não tem placa, ignorar (pode ser linha de total ou vazia)
           const placa = idx.placa !== -1 ? String(row[idx.placa] || '').trim() : ''
           if (!status && !placa) continue
 
           const rawInicio = idx.inicio !== -1 ? row[idx.inicio] : null
           const rawTermino = idx.termino !== -1 ? row[idx.termino] : null
           
-          const dataRota = formatToBrazillianDate(rawInicio || rawTermino)
+          const dataRotaISO = normalizeDateToISO(rawInicio || rawTermino)
 
           routes.push({
             id: `${celula}-${roteiro}-${i}-${uploadId}`,
@@ -129,7 +123,7 @@ function parseExcelFile(
             status: (['Encerrado', 'Com Pendências', 'Em execução', 'Previsto', 'Regresso'].includes(status) 
               ? status 
               : 'Previsto') as RouteStatus,
-            eventos: '', // KMM export can vary, defaults to empty
+            eventos: '', 
             placa,
             kmStatus: (['OK', 'Rodado a mais', 'Rodado a menos'].includes(String(row[idx.kmStatus])) 
               ? row[idx.kmStatus] 
@@ -148,8 +142,7 @@ function parseExcelFile(
             kmRodado: 0,
             kmFechamento: 0,
             kmRecebido: 0,
-            // Meta-dados
-            dataRota,
+            dataRota: dataRotaISO,
             dataAuditoriaInicio: auditStart,
             dataAuditoriaFim: auditEnd,
             uploadId,
@@ -170,7 +163,7 @@ function parseExcelFile(
 }
 
 export function UploadTab() {
-  const { addRoutes, setLastUpload, uploadSummary, lastUpload, referenceDate, setReferenceDate } = useCCO()
+  const { addRoutes, setLastUpload, referenceDate, setReferenceDate } = useCCO()
   
   const [auditPeriod, setAuditPeriodState] = useState({
     start: new Date().toISOString().split('T')[0],
@@ -220,10 +213,8 @@ export function UploadTab() {
         const routes = await parseExcelFile(file, celula, auditPeriod.start, auditPeriod.end)
         addRoutes(routes, celula, auditPeriod.start, auditPeriod.end)
         
-        // Se a data de referência ainda não foi definida, sugere a data de início da auditoria
         if (!referenceDate) {
-          const [y, m, d] = auditPeriod.start.split('-')
-          setReferenceDate(`${d}/${m}/${y}`)
+          setReferenceDate(auditPeriod.start)
         }
 
         setProcessing(prev => ({
@@ -295,17 +286,10 @@ export function UploadTab() {
               <Input
                 type="date"
                 className="bg-secondary"
-                value={referenceDate ? referenceDate.split('/').reverse().join('-') : ''}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    const [year, month, day] = e.target.value.split('-')
-                    setReferenceDate(`${day}/${month}/${year}`)
-                  } else {
-                    setReferenceDate(null)
-                  }
-                }}
+                value={referenceDate || ''}
+                onChange={(e) => setReferenceDate(e.target.value || null)}
               />
-              <p className="text-xs text-muted-foreground">Rotas com status &quot;Regresso&quot; fora desta data serao contadas como pendencias.</p>
+              <p className="text-xs text-muted-foreground">Rotas com status &quot;Regresso&quot; fora desta data ({formatDateBR(referenceDate)}) serao contadas como pendencias.</p>
             </div>
           </CardContent>
         </Card>

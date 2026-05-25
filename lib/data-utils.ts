@@ -1,21 +1,22 @@
 import { type Route, type PlantSummary, type CellSummary, type GlobalSummary, type CellNumber, type FilterScope } from './types'
 
-// --- FUNÇÕES DE APOIO ---
+// --- FUNÇÕES DE APOIO E PADRONIZAÇÃO DE DATAS ---
 
 /**
- * Função robusta para converter datas de diversos formatos para DD/MM/YYYY
+ * Converte qualquer valor de data para string ISO (YYYY-MM-DD)
+ * Suporta: DD/MM/YYYY, YYYY-MM-DD, Date object, número serial Excel
  */
-export function formatToBrazillianDate(input: any): string | null {
+export function normalizeDateToISO(input: any): string | null {
   if (!input) return null
   
   let date: Date | null = null
 
-  // Se for número (Excel Serial Date)
-  if (typeof input === 'number') {
+  if (input instanceof Date) {
+    date = input
+  } else if (typeof input === 'number') {
+    // Excel Serial Date
     date = new Date(Math.round((input - 25569) * 86400 * 1000))
-  } 
-  // Se for string
-  else if (typeof input === 'string') {
+  } else if (typeof input === 'string') {
     const s = input.trim()
     if (!s) return null
 
@@ -42,7 +43,7 @@ export function formatToBrazillianDate(input: any): string | null {
       }
     }
     
-    // Fallback para Date parser nativo
+    // Fallback parser nativo
     if (!date || isNaN(date.getTime())) {
       date = new Date(s)
     }
@@ -50,110 +51,90 @@ export function formatToBrazillianDate(input: any): string | null {
 
   if (!date || isNaN(date.getTime())) return null
 
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
   
-  return `${day}/${month}/${year}`
+  return `${y}-${m}-${d}`
 }
 
-export function isRegressoAntigo(route: Route, referenceDate: string | null): boolean {
+/**
+ * Formata data ISO para padrão brasileiro DD/MM/YYYY
+ */
+export function formatDateBR(isoDate: string | null | undefined): string {
+  if (!isoDate) return 'Sem data'
+  const parts = isoDate.split('-')
+  if (parts.length !== 3) return isoDate // Provavelmente já formatado ou inválido
+  return `${parts[2]}/${parts[1]}/${parts[0]}`
+}
+
+/**
+ * Converte string de data para objeto Date de forma segura para comparacoes
+ */
+export function parseDateSafe(input: any): Date | null {
+  const iso = normalizeDateToISO(input)
+  if (!iso) return null
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+// --- REGRAS DE NEGÓCIO CENTRALIZADAS ---
+
+export function isRegressoAntigo(route: Route, referenceDateISO: string | null): boolean {
   if (route.status !== 'Regresso') return false
-  if (!referenceDate) return false
-  if (!route.dataRota) return false
+  if (!referenceDateISO) return false
   
-  return route.dataRota !== referenceDate
+  const routeDateISO = normalizeDateToISO(route.dataRota || route.inicio)
+  if (!routeDateISO) return false
+  
+  return routeDateISO !== referenceDateISO
 }
 
-export function isPendente(route: Route, referenceDate: string | null): boolean {
+export function isPendente(route: Route, referenceDateISO: string | null): boolean {
   if (['Em execução', 'Com Pendências', 'Previsto'].includes(route.status)) return true
-  if (isRegressoAntigo(route, referenceDate)) return true
+  if (isRegressoAntigo(route, referenceDateISO)) return true
   return false
 }
 
 export function isSemContraLeite(route: Route): boolean {
-  return route.litrosDescarregados === 0
+  return Number(route.litrosDescarregados) === 0
 }
 
 export function isKmStatusIncorreto(route: Route): boolean {
   return route.kmStatus === 'Rodado a mais' || route.kmStatus === 'Rodado a menos'
 }
 
-/**
- * Converte string de data para objeto Date de forma segura para comparacoes
- */
-export function parseDateSafely(input: any): Date | null {
-  if (!input) return null
-  if (input instanceof Date) return isNaN(input.getTime()) ? null : input
-
-  const s = String(input).trim()
-  if (!s) return null
-
-  // Tentar DD/MM/YYYY
-  if (s.includes('/')) {
-    const parts = s.split(' ')[0].split('/')
-    if (parts.length === 3) {
-      const d = parseInt(parts[0], 10)
-      const m = parseInt(parts[1], 10) - 1
-      const y = parseInt(parts[2], 10)
-      const date = new Date(y, m, d)
-      if (!isNaN(date.getTime())) return date
-    }
-  }
-
-  // Tentar YYYY-MM-DD
-  if (s.includes('-')) {
-    const parts = s.split(' ')[0].split('-')
-    if (parts.length === 3) {
-      const date = parts[0].length === 4 
-        ? new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
-        : new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]))
-      if (!isNaN(date.getTime())) return date
-    }
-  }
-
-  const fallback = new Date(s)
-  return isNaN(fallback.getTime()) ? null : fallback
-}
-
 // --- FILTROS ---
 
-export function filterRoutesByAuditPeriod(routes: Route[], startStr: string | null, endStr: string | null): Route[] {
+export function filterRoutesByAuditPeriod(routes: Route[], startISO: string | null, endISO: string | null): Route[] {
   if (!Array.isArray(routes)) return []
-  if (!startStr && !endStr) return routes
+  if (!startISO && !endISO) return routes
   
-  const start = startStr ? parseDateSafely(startStr) : null
-  const end = endStr ? parseDateSafely(endStr) : null
-
   return routes.filter(r => {
-    // Buscar data de auditoria em diversos campos possiveis para maior compatibilidade
-    const auditDateRaw = (r as any).dataAuditoria || 
-                         (r as any).auditDate || 
-                         r.dataAuditoriaInicio || 
-                         (r as any).auditStartDate
+    // Priorizar campos dataAuditoriaInicio/Fim
+    const rStart = r.dataAuditoriaInicio ? normalizeDateToISO(r.dataAuditoriaInicio) : null
+    const rEnd = r.dataAuditoriaFim ? normalizeDateToISO(r.dataAuditoriaFim) : null
 
-    if (!auditDateRaw) return true // Se nao tem data, nao filtra (defensivo)
-    
-    const parsed = parseDateSafely(auditDateRaw)
-    if (!parsed) return true
+    // Se a rota não tem data de auditoria, deixamos passar (defensivo para builds)
+    if (!rStart && !rEnd) return true
 
-    if (start && parsed < start) return false
-    if (end && parsed > end) return false
+    if (startISO && rStart && rStart < startISO) return false
+    if (endISO && rEnd && rEnd > endISO) return false
     
     return true
   })
 }
 
-export function applyStatusScope(routes: Route[], scope: FilterScope, referenceDate: string | null): Route[] {
+export function applyStatusScope(routes: Route[], scope: FilterScope, referenceDateISO: string | null): Route[] {
   if (scope === 'all') return routes
-  if (scope === 'pending') return routes.filter(r => isPendente(r, referenceDate))
+  if (scope === 'pending') return routes.filter(r => isPendente(r, referenceDateISO))
   if (scope === 'closed') return routes.filter(r => r.status === 'Encerrado')
   return routes
 }
 
 // --- CÁLCULOS DE RESUMO ---
 
-export function calculatePlantSummary(routes: Route[], planta: string, celula: CellNumber, referenceDate: string | null): PlantSummary {
+export function calculatePlantSummary(routes: Route[], planta: string, celula: CellNumber, referenceDateISO: string | null): PlantSummary {
   const plantRoutes = routes.filter(r => r.planta === planta && r.celula === celula)
   const totalRotas = plantRoutes.length
   
@@ -161,10 +142,8 @@ export function calculatePlantSummary(routes: Route[], planta: string, celula: C
   const emExecucao = plantRoutes.filter(r => r.status === 'Em execução').length
   const previsto = plantRoutes.filter(r => r.status === 'Previsto').length
   const regresso = plantRoutes.filter(r => r.status === 'Regresso').length
-  const regressoAntigo = plantRoutes.filter(r => isRegressoAntigo(r, referenceDate)).length
-  
-  // Pendências conforme regra: Em execução, Com Pendências, Previsto, Regresso antigo
-  const pendencias = plantRoutes.filter(r => isPendente(r, referenceDate)).length
+  const regressoAntigo = plantRoutes.filter(r => isRegressoAntigo(r, referenceDateISO)).length
+  const pendencias = plantRoutes.filter(r => isPendente(r, referenceDateISO)).length
   
   const kmOk = plantRoutes.filter(r => r.kmStatus === 'OK').length
   const kmMais = plantRoutes.filter(r => r.kmStatus === 'Rodado a mais').length
@@ -190,26 +169,26 @@ export function calculatePlantSummary(routes: Route[], planta: string, celula: C
     kmMais,
     kmMenos,
     kmErrado,
-    litrosColetados: plantRoutes.reduce((sum, r) => sum + r.litrosColetados, 0),
-    litrosDescarregados: plantRoutes.reduce((sum, r) => sum + r.litrosDescarregados, 0),
+    litrosColetados: plantRoutes.reduce((sum, r) => sum + (Number(r.litrosColetados) || 0), 0),
+    litrosDescarregados: plantRoutes.reduce((sum, r) => sum + (Number(r.litrosDescarregados) || 0), 0),
     semContraLeite,
     totalCritico,
     percentualCritico: totalRotas > 0 ? (totalCritico / totalRotas) * 100 : 0
   }
 }
 
-export function calculateCellSummary(routes: Route[], celula: CellNumber, referenceDate: string | null): CellSummary {
+export function calculateCellSummary(routes: Route[], celula: CellNumber, referenceDateISO: string | null): CellSummary {
   const cellRoutes = routes.filter(r => r.celula === celula)
   const plantas = [...new Set(cellRoutes.map(r => r.planta))].sort()
   
-  const plantSummaries = plantas.map(p => calculatePlantSummary(cellRoutes, p, celula, referenceDate))
+  const plantSummaries = plantas.map(p => calculatePlantSummary(cellRoutes, p, celula, referenceDateISO))
   const totalRotas = cellRoutes.length
   
   const encerradas = cellRoutes.filter(r => r.status === 'Encerrado').length
-  const pendencias = cellRoutes.filter(r => isPendente(r, referenceDate)).length
+  const pendencias = cellRoutes.filter(r => isPendente(r, referenceDateISO)).length
   const semContraLeite = cellRoutes.filter(r => isSemContraLeite(r)).length
   const kmErrado = cellRoutes.filter(r => isKmStatusIncorreto(r)).length
-  const regressoAntigo = cellRoutes.filter(r => isRegressoAntigo(r, referenceDate)).length
+  const regressoAntigo = cellRoutes.filter(r => isRegressoAntigo(r, referenceDateISO)).length
 
   return {
     celula,
@@ -225,7 +204,7 @@ export function calculateCellSummary(routes: Route[], celula: CellNumber, refere
     kmMais: cellRoutes.filter(r => r.kmStatus === 'Rodado a mais').length,
     kmMenos: cellRoutes.filter(r => r.kmStatus === 'Rodado a menos').length,
     kmErrado,
-    litrosColetados: cellRoutes.reduce((sum, r) => sum + r.litrosColetados, 0),
+    litrosColetados: cellRoutes.reduce((sum, r) => sum + (Number(r.litrosColetados) || 0), 0),
     semContraLeite,
     totalCritico: pendencias + semContraLeite + kmErrado,
     percentualCritico: totalRotas > 0 ? ((pendencias + semContraLeite + kmErrado) / totalRotas) * 100 : 0,
@@ -233,15 +212,15 @@ export function calculateCellSummary(routes: Route[], celula: CellNumber, refere
   }
 }
 
-export function calculateGlobalSummary(routes: Route[], referenceDate: string | null): GlobalSummary {
+export function calculateGlobalSummary(routes: Route[], referenceDateISO: string | null): GlobalSummary {
   const totalRotas = routes.length
   const encerradas = routes.filter(r => r.status === 'Encerrado').length
-  const pendencias = routes.filter(r => isPendente(r, referenceDate)).length
+  const pendencias = routes.filter(r => isPendente(r, referenceDateISO)).length
   const semContraLeite = routes.filter(r => isSemContraLeite(r)).length
   const kmIncorreto = routes.filter(r => isKmStatusIncorreto(r)).length
-  const regressoAntigo = routes.filter(r => isRegressoAntigo(r, referenceDate)).length
+  const regressoAntigo = routes.filter(r => isRegressoAntigo(r, referenceDateISO)).length
 
-  const cells = ([1, 2, 3] as CellNumber[]).map(c => calculateCellSummary(routes, c, referenceDate))
+  const cells = ([1, 2, 3] as CellNumber[]).map(c => calculateCellSummary(routes, c, referenceDateISO))
 
   return {
     totalRotas,
@@ -255,7 +234,7 @@ export function calculateGlobalSummary(routes: Route[], referenceDate: string | 
     kmOk: routes.filter(r => r.kmStatus === 'OK').length,
     kmMais: routes.filter(r => r.kmStatus === 'Rodado a mais').length,
     kmMenos: routes.filter(r => r.kmStatus === 'Rodado a menos').length,
-    litrosColetados: routes.reduce((sum, r) => sum + r.litrosColetados, 0),
+    litrosColetados: routes.reduce((sum, r) => sum + (Number(r.litrosColetados) || 0), 0),
     semContraLeite,
     kmIncorreto,
     totalCritico: pendencias + semContraLeite + kmIncorreto,
@@ -264,7 +243,7 @@ export function calculateGlobalSummary(routes: Route[], referenceDate: string | 
   }
 }
 
-export function getWorstOperations(routes: Route[], limit: number = 10, referenceDate: string | null): PlantSummary[] {
+export function getWorstOperations(routes: Route[], limit: number = 10, referenceDateISO: string | null): PlantSummary[] {
   const plants = [...new Set(routes.map(r => r.planta))]
   const summaries: PlantSummary[] = []
   
@@ -272,7 +251,7 @@ export function getWorstOperations(routes: Route[], limit: number = 10, referenc
     const plantRoutes = routes.filter(r => r.planta === planta)
     if (plantRoutes.length > 0) {
       const celula = plantRoutes[0].celula
-      summaries.push(calculatePlantSummary(routes, planta, celula, referenceDate))
+      summaries.push(calculatePlantSummary(routes, planta, celula, referenceDateISO))
     }
   })
   
@@ -289,26 +268,6 @@ export function formatNumber(num: number): string {
 
 export function formatPercentage(num: number): string {
   return `${num.toFixed(1)}%`
-}
-
-export function getStatusColor(status: string): string {
-  switch (status) {
-    case 'Encerrado': return 'text-success'
-    case 'Com Pendências': return 'text-danger'
-    case 'Em execução': return 'text-warning'
-    case 'Previsto': return 'text-muted-foreground'
-    case 'Regresso': return 'text-danger'
-    default: return 'text-foreground'
-  }
-}
-
-export function getKmStatusColor(status: string): string {
-  switch (status) {
-    case 'OK': return 'text-success'
-    case 'Rodado a mais': return 'text-orange'
-    case 'Rodado a menos': return 'text-info'
-    default: return 'text-foreground'
-  }
 }
 
 export function getPercentageColor(percentage: number): string {
@@ -329,7 +288,7 @@ export function analyzeDelayReasons(routes: Route[]): Record<string, number> {
   
   keywords.forEach(keyword => {
     counts[keyword] = routes.filter(r => 
-      r.observacao.toUpperCase().includes(keyword)
+      (r.observacao || '').toUpperCase().includes(keyword)
     ).length
   })
   

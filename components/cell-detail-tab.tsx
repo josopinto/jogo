@@ -9,7 +9,8 @@ import {
   formatPercentage, 
   getPercentageColor, 
   filterRoutesByAuditPeriod,
-  applyStatusScope 
+  applyStatusScope,
+  formatDateBR 
 } from '@/lib/data-utils'
 import { type CellNumber } from '@/lib/types'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -35,6 +36,8 @@ export function CellDetailTab() {
   const { routes, referenceDate, auditPeriod, indicatorScope } = useCCO()
   const [selectedCell, setSelectedCell] = useState<CellNumber>(1)
 
+  // --- HOOKS ---
+
   // 1. Filtrar pelo período de auditoria
   const routesInAudit = useMemo(() => {
     return filterRoutesByAuditPeriod(routes, auditPeriod.start, auditPeriod.end)
@@ -57,7 +60,7 @@ export function CellDetailTab() {
         const pRoutes = cellRoutesInScope.filter(r => r.planta === p)
         return {
            planta: p,
-           semContraLeite: pRoutes.filter(r => r.litrosDescarregados === 0).length,
+           semContraLeite: pRoutes.filter(r => Number(r.litrosDescarregados) === 0).length,
            kmErrado: pRoutes.filter(r => r.kmStatus !== 'OK').length
         }
      })
@@ -75,7 +78,11 @@ export function CellDetailTab() {
       }))
   }, [cellSummary])
 
-  if (routes.length === 0) {
+  const isEmpty = routes.length === 0
+
+  // --- RENDER ---
+
+  if (isEmpty) {
     return (
       <div className="flex flex-col items-center justify-center h-80 text-center space-y-4">
         <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
@@ -93,7 +100,7 @@ export function CellDetailTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-card p-4 rounded-xl border border-border">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-card p-4 rounded-xl border border-border shadow-sm">
          <div className="flex items-center gap-4">
             <Select value={selectedCell.toString()} onValueChange={(v) => setSelectedCell(Number(v) as CellNumber)}>
               <SelectTrigger className="w-48 bg-secondary border-border h-9">
@@ -107,7 +114,7 @@ export function CellDetailTab() {
             </Select>
             <div className="h-4 w-[1px] bg-border mx-2 hidden md:block" />
             <span className="text-[10px] font-bold text-muted-foreground uppercase">Periodo:</span>
-            <span className="text-xs font-mono">{auditPeriod.start} ate {auditPeriod.end}</span>
+            <span className="text-xs font-mono">{formatDateBR(auditPeriod.start)} ate {formatDateBR(auditPeriod.end)}</span>
          </div>
          <div className="text-right text-xs">
             <span className="text-muted-foreground uppercase font-bold mr-2">Escopo Indicadores:</span>
@@ -115,7 +122,6 @@ export function CellDetailTab() {
          </div>
       </div>
 
-      {/* KPIs da Célula */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
         <Card className="bg-card border-border">
           <CardHeader className="pb-1 p-4">
@@ -175,8 +181,7 @@ export function CellDetailTab() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-         {/* Ranking de Encerramento */}
-         <Card className="bg-card border-border">
+         <Card className="bg-card border-border shadow-sm">
             <CardHeader>
                <CardTitle className="text-sm font-bold">% Encerramento por Planta</CardTitle>
             </CardHeader>
@@ -200,8 +205,7 @@ export function CellDetailTab() {
             </CardContent>
          </Card>
 
-         {/* Tabela Detalhada */}
-         <Card className="bg-card border-border">
+         <Card className="bg-card border-border shadow-sm">
             <CardHeader>
                <CardTitle className="text-sm font-bold">Resumo por Planta (Célula {selectedCell})</CardTitle>
             </CardHeader>

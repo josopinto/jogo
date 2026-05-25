@@ -10,7 +10,9 @@ import {
   isSemContraLeite, 
   isKmStatusIncorreto,
   filterRoutesByAuditPeriod,
-  applyStatusScope 
+  applyStatusScope,
+  formatDateBR,
+  normalizeDateToISO 
 } from '@/lib/data-utils'
 import { type CellNumber, type RouteStatus, type KmStatus, type FilterScope } from '@/lib/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -48,12 +50,14 @@ const INITIAL_FILTERS: Filters = {
 }
 
 export function OperationalDetailTab() {
-  const { routes, referenceDate, auditPeriod, indicatorScope } = useCCO()
+  const { routes, referenceDate, auditPeriod } = useCCO()
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS)
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [searchGlobal, setSearchGlobal] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 50
+
+  // --- HOOKS ---
 
   // 1. Filtrar rotas pelo período de auditoria (Base de Trabalho)
   const routesInAudit = useMemo(() => {
@@ -126,20 +130,22 @@ export function OperationalDetailTab() {
 
   const totalPages = Math.ceil(filteredRoutes.length / itemsPerPage)
 
+  // --- HANDLERS ---
+
   const handleExportCSV = () => {
     const headers = ['Celula', 'Planta', 'Roteiro', 'Data Rota', 'Status', 'KM Status', 'Litros Col.', 'Litros Des.', 'Observacao', 'Placa', 'Periodo Auditoria']
     const rows = filteredRoutes.map(r => [
       r.celula,
       `"${r.planta}"`,
       `"${r.roteiro}"`,
-      r.dataRota || '',
+      formatDateBR(r.dataRota),
       r.status,
       r.kmStatus,
       r.litrosColetados,
       r.litrosDescarregados,
       `"${r.observacao}"`,
       r.placa,
-      `${r.dataAuditoriaInicio} a ${r.dataAuditoriaFim}`
+      `${formatDateBR(r.dataAuditoriaInicio)} a ${formatDateBR(r.dataAuditoriaFim)}`
     ])
     
     const csvContent = [
@@ -288,7 +294,7 @@ export function OperationalDetailTab() {
       </Card>
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Mostrando <strong>{filteredRoutes.length}</strong> rotas na auditoria <strong>{auditPeriod.start}</strong></span>
+        <span>Mostrando <strong>{filteredRoutes.length}</strong> rotas na auditoria <strong>{formatDateBR(auditPeriod.start)}</strong></span>
         {totalPages > 1 && (
           <div className="flex gap-2">
             <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>Anterior</Button>
@@ -322,7 +328,7 @@ export function OperationalDetailTab() {
                     <td className="p-3">{r.celula}</td>
                     <td className="p-3 font-bold">{r.planta}</td>
                     <td className="p-3 font-mono">{r.roteiro}</td>
-                    <td className="p-3 whitespace-nowrap">{r.dataRota || '-'}</td>
+                    <td className="p-3 whitespace-nowrap">{formatDateBR(r.dataRota)}</td>
                     <td className="p-3">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${r.status === 'Encerrado' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
                         {r.status}

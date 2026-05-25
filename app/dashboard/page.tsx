@@ -8,7 +8,14 @@ import { CellDetailTab } from '@/components/cell-detail-tab'
 import { OperationalDetailTab } from '@/components/operational-detail-tab'
 import { ActionPlanTab } from '@/components/action-plan-tab'
 import { SummaryTab } from '@/components/summary-tab'
-import { calculateGlobalSummary, formatPercentage, formatNumber, filterRoutesByAuditPeriod, applyStatusScope } from '@/lib/data-utils'
+import { 
+  calculateGlobalSummary, 
+  formatPercentage, 
+  formatNumber, 
+  filterRoutesByAuditPeriod, 
+  applyStatusScope,
+  formatDateBR 
+} from '@/lib/data-utils'
 
 type TabId = 'upload' | 'summary' | 'executive' | 'cell' | 'operational' | 'action'
 
@@ -77,7 +84,7 @@ const tabs: Tab[] = [
 
 function DashboardContent() {
   const [activeTab, setActiveTab] = useState<TabId>('summary')
-  const { routes, uploadSummary, referenceDate, auditPeriod, indicatorScope } = useCCO()
+  const { routes, referenceDate, auditPeriod, indicatorScope } = useCCO()
   
   // Base Filtrada pelo Período de Auditoria para o Header
   const routesInAudit = useMemo(() => {
@@ -118,7 +125,7 @@ function DashboardContent() {
             <div className="hidden lg:flex items-center gap-4">
               <div className="flex flex-col items-end mr-4 border-r border-border pr-4">
                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Auditoria Ativa</span>
-                 <span className="text-xs font-mono font-bold text-primary">{auditPeriod.start || '---'} ate {auditPeriod.end || '---'}</span>
+                 <span className="text-xs font-mono font-bold text-primary">{formatDateBR(auditPeriod.start)} ate {formatDateBR(auditPeriod.end)}</span>
               </div>
 
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">

@@ -11,7 +11,8 @@ import {
   getPercentageColor,
   filterRoutesByAuditPeriod,
   applyStatusScope,
-  calculateCellSummary
+  calculateCellSummary,
+  formatDateBR
 } from '@/lib/data-utils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { 
@@ -51,12 +52,6 @@ const KM_COLORS = {
   menos: '#4da6ff'
 }
 
-const PROBLEM_COLORS = {
-  pendentes: '#ff6b6b',
-  semContraLeite: '#ffd166',
-  kmErrado: '#ff9f43'
-}
-
 export function ExecutiveDashboard() {
   const { 
     routes, 
@@ -66,6 +61,8 @@ export function ExecutiveDashboard() {
     indicatorScope, 
     setIndicatorScope 
   } = useCCO()
+
+  // --- HOOKS ---
 
   // 1. Base Filtrada pelo Período de Auditoria
   const routesInAudit = useMemo(() => {
@@ -79,7 +76,6 @@ export function ExecutiveDashboard() {
 
   const summary = useMemo(() => calculateGlobalSummary(routesInAudit, referenceDate), [routesInAudit, referenceDate])
   const indicatorStats = useMemo(() => calculateGlobalSummary(routesInScope, referenceDate), [routesInScope, referenceDate])
-  const worstOperations = useMemo(() => getWorstOperations(routesInAudit, 10, referenceDate), [routesInAudit, referenceDate])
 
   // Dados para grafico de pizza de status
   const pieData = useMemo(() => [
@@ -108,7 +104,11 @@ export function ExecutiveDashboard() {
     }))
   }, [indicatorStats])
 
-  if (routes.length === 0) {
+  const isEmpty = routes.length === 0
+
+  // --- RENDER ---
+
+  if (isEmpty) {
     return (
       <div className="flex flex-col items-center justify-center h-80 text-center space-y-4">
         <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
@@ -126,19 +126,19 @@ export function ExecutiveDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-card p-4 rounded-xl border border-border">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-card p-4 rounded-xl border border-border shadow-sm">
          <div className="flex flex-wrap gap-4 items-center">
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-muted-foreground uppercase">Periodo Auditoria</span>
               <div className="flex gap-2">
-                <Input type="date" value={auditPeriod.start || ''} onChange={e => setAuditPeriod(e.target.value, auditPeriod.end)} className="h-8 w-32 text-xs" />
-                <Input type="date" value={auditPeriod.end || ''} onChange={e => setAuditPeriod(auditPeriod.start, e.target.value)} className="h-8 w-32 text-xs" />
+                <Input type="date" value={auditPeriod.start || ''} onChange={e => setAuditPeriod(e.target.value, auditPeriod.end)} className="h-8 w-32 text-xs bg-secondary" />
+                <Input type="date" value={auditPeriod.end || ''} onChange={e => setAuditPeriod(auditPeriod.start, e.target.value)} className="h-8 w-32 text-xs bg-secondary" />
               </div>
             </div>
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-muted-foreground uppercase">Escopo Indicadores</span>
               <Select value={indicatorScope} onValueChange={(v) => setIndicatorScope(v as FilterScope)}>
-                <SelectTrigger className="h-8 w-48 text-xs">
+                <SelectTrigger className="h-8 w-48 text-xs bg-secondary">
                   <SelectValue placeholder="Escopo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -151,11 +151,10 @@ export function ExecutiveDashboard() {
          </div>
          <div className="text-right">
             <span className="text-[10px] font-bold text-muted-foreground uppercase block">Referencia Auditoria</span>
-            <span className="text-sm font-bold text-primary">{referenceDate}</span>
+            <span className="text-sm font-bold text-primary">{formatDateBR(referenceDate)}</span>
          </div>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card className="bg-card border-border border-l-4 border-l-primary">
           <CardHeader className="pb-2">
@@ -179,7 +178,7 @@ export function ExecutiveDashboard() {
 
         <Card className="bg-card border-border border-l-4 border-l-warning">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground font-normal">Sem Contra Leite</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground font-normal">Sem Contra Leite*</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-warning">{formatNumber(indicatorStats.semContraLeite)}</div>
@@ -189,10 +188,10 @@ export function ExecutiveDashboard() {
 
         <Card className="bg-card border-border border-l-4 border-l-orange">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground font-normal">KM Status Errado</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground font-normal">KM Status Errado*</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-orange">{formatNumber(indicatorStats.kmIncorreto)}</div>
+            <div className="text-3xl font-bold text-orange">{formatNumber(indicatorStats.kmErrado)}</div>
             <p className="text-[10px] text-muted-foreground mt-1">escopo: {indicatorScope}</p>
           </CardContent>
         </Card>
@@ -208,9 +207,8 @@ export function ExecutiveDashboard() {
         </Card>
       </div>
 
-      {/* Graficos Principais */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-border shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">Distribuicao de Status</CardTitle>
             <CardDescription>Visao geral da base de auditoria</CardDescription>
@@ -243,7 +241,7 @@ export function ExecutiveDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-border shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">Pendencias por Celula</CardTitle>
             <CardDescription>Comparativo de encerramento</CardDescription>
@@ -269,9 +267,9 @@ export function ExecutiveDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-1">
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-border shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">KM Status e Contra Leite por Celula</CardTitle>
+            <CardTitle className="text-base">KM Status por Celula</CardTitle>
             <CardDescription>Indicadores no escopo: {indicatorScope}</CardDescription>
           </CardHeader>
           <CardContent>

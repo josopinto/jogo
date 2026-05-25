@@ -3,12 +3,13 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 import { type Route, type CellNumber, type AppState, type FilterScope } from '@/lib/types'
 import { INITIAL_STATE } from '@/lib/initial-data'
+import { normalizeDateToISO } from '@/lib/data-utils'
 
 interface CCOContextType {
   routes: Route[]
   lastUpload: string | null
-  referenceDate: string | null
-  auditPeriod: { start: string | null; end: string | null }
+  referenceDate: string | null // ISO format YYYY-MM-DD
+  auditPeriod: { start: string | null; end: string | null } // ISO format YYYY-MM-DD
   indicatorScope: FilterScope
   uploadSummary: { cell1: number; cell2: number; cell3: number }
   addRoutes: (newRoutes: Route[], celula: CellNumber, periodStart: string, periodEnd: string) => void
@@ -26,15 +27,15 @@ export function CCOProvider({ children }: { children: ReactNode }) {
 
   const addRoutes = useCallback((newRoutes: Route[], celula: CellNumber, periodStart: string, periodEnd: string) => {
     setState(prev => {
+      const startISO = normalizeDateToISO(periodStart)
+      const endISO = normalizeDateToISO(periodEnd)
+
       // Remover rotas antigas da mesma célula que pertencem ao mesmo período de auditoria
-      // Regra: se importar mesma célula + mesmo período, substitui.
       const otherRoutes = prev.routes.filter(r => 
-        !(r.celula === celula && r.dataAuditoriaInicio === periodStart && r.dataAuditoriaFim === periodEnd)
+        !(r.celula === celula && r.dataAuditoriaInicio === startISO && r.dataAuditoriaFim === endISO)
       )
       
       const updatedRoutes = [...otherRoutes, ...newRoutes]
-      
-      // Atualizar sumário de upload (apenas contagem total por célula no estado atual)
       const cellCount = updatedRoutes.filter(r => r.celula === celula).length
       
       return {
@@ -64,11 +65,17 @@ export function CCOProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const setReferenceDate = useCallback((date: string | null) => {
-    setState(prev => ({ ...prev, referenceDate: date }))
+    setState(prev => ({ ...prev, referenceDate: normalizeDateToISO(date) }))
   }, [])
 
   const setAuditPeriod = useCallback((start: string | null, end: string | null) => {
-    setState(prev => ({ ...prev, auditPeriod: { start, end } }))
+    setState(prev => ({ 
+      ...prev, 
+      auditPeriod: { 
+        start: normalizeDateToISO(start), 
+        end: normalizeDateToISO(end) 
+      } 
+    }))
   }, [])
 
   const setIndicatorScope = useCallback((scope: FilterScope) => {
