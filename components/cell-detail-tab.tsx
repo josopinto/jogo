@@ -10,7 +10,9 @@ import {
   getPercentageColor, 
   filterRoutesByAuditPeriod,
   applyStatusScope,
-  formatDateBR 
+  formatDateBR,
+  isSemContraLeite,
+  isKmStatusIncorreto
 } from '@/lib/data-utils'
 import { type CellNumber } from '@/lib/types'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -54,8 +56,8 @@ export function CellDetailTab() {
         const pRoutes = cellRoutesInScope.filter(r => r.planta === p)
         return {
            planta: p,
-           semContraLeite: pRoutes.filter(r => Number(r.litrosDescarregados) === 0).length,
-           kmErrado: pRoutes.filter(r => r.kmStatus !== 'OK').length
+           semContraLeite: pRoutes.filter(r => isSemContraLeite(r)).length,
+           kmErrado: pRoutes.filter(r => isKmStatusIncorreto(r)).length
         }
      })
   }, [routesInAudit, selectedCell, indicatorScope, referenceDate])

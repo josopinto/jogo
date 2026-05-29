@@ -25,7 +25,7 @@ import { INITIAL_ROUTES } from '@/lib/initial-data'
 import { calculateGlobalSummary, formatPercentage, formatNumber } from '@/lib/data-utils'
 
 export function LandingPage() {
-  const summary = calculateGlobalSummary(INITIAL_ROUTES)
+  const summary = calculateGlobalSummary(INITIAL_ROUTES, null)
   const pendentesTotal = summary.pendencias + summary.emExecucao + summary.previsto + summary.regresso
 
   return (

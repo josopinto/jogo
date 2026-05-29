@@ -30,11 +30,19 @@ interface ProcessingStatus {
   cell3: { status: 'idle' | 'processing' | 'done' | 'error'; count: number; plants: number; alerts: number }
 }
 
+// Tolerância (em %) sobre o KM previsto para classificar o KM Status.
+// |KM diferença| acima de KM_TOLERANCE_PCT% do previsto => Rodado a mais/menos; senão OK.
+const KM_TOLERANCE_PCT = 3
+
 const COLUMN_MAP: Record<string, string[]> = {
   roteiro: ['Roteiro', 'roteiro'],
   status: ['Status', 'status'],
   placa: ['Placa', 'placa'],
   kmStatus: ['KM status', 'KM Status', 'kmStatus'],
+  kmDiferenca: ['KM diferença', 'KM diferenca', 'KM Diferença', 'KM Diferenca', 'kmDiferenca'],
+  kmPrevistoTotal: ['KM previsto total', 'KM Previsto Total', 'kmPrevistoTotal'],
+  kmRodadoTotal: ['KM rodado total', 'KM Rodado Total', 'kmRodadoTotal'],
+  eventos: ['Eventos', 'eventos'],
   observacao: ['Observação 2', 'Observação', 'Observacao', 'observacao'],
   litrosColetados: ['Total litros coletados', 'Litros Col.', 'Litros Coletados', 'litrosColetados'],
   litrosDescarregados: ['Litros descarregados', 'Litros Des.', 'Total litros descarregados', 'litrosDescarregados'],
@@ -84,12 +92,19 @@ function parseExcelFile(
           status: findColumnIndex(headers, COLUMN_MAP.status),
           placa: findColumnIndex(headers, COLUMN_MAP.placa),
           kmStatus: findColumnIndex(headers, COLUMN_MAP.kmStatus),
+          kmDiferenca: findColumnIndex(headers, COLUMN_MAP.kmDiferenca),
+          kmPrevistoTotal: findColumnIndex(headers, COLUMN_MAP.kmPrevistoTotal),
+          kmRodadoTotal: findColumnIndex(headers, COLUMN_MAP.kmRodadoTotal),
+          eventos: findColumnIndex(headers, COLUMN_MAP.eventos),
           observacao: findColumnIndex(headers, COLUMN_MAP.observacao),
           litrosColetados: findColumnIndex(headers, COLUMN_MAP.litrosColetados),
           litrosDescarregados: findColumnIndex(headers, COLUMN_MAP.litrosDescarregados),
           inicio: findColumnIndex(headers, COLUMN_MAP.inicio),
           termino: findColumnIndex(headers, COLUMN_MAP.termino)
         }
+
+        // O export do KMM pode não trazer o texto de "KM status".
+        const hasKmStatusText = idx.kmStatus !== -1
 
         const routes: Route[] = []
         const plantSet = new Set<string>()
@@ -126,31 +141,49 @@ function parseExcelFile(
 
           if (!dataRotaISO) alerts++
 
+          const kmDiferenca = idx.kmDiferenca !== -1 ? (Number(row[idx.kmDiferenca]) || 0) : 0
+          const kmPrevistoTotal = idx.kmPrevistoTotal !== -1 ? (Number(row[idx.kmPrevistoTotal]) || 0) : 0
+          const kmRodadoTotal = idx.kmRodadoTotal !== -1 ? (Number(row[idx.kmRodadoTotal]) || 0) : 0
+
+          // KM Status: usa a coluna textual se existir; senão deriva da diferença
+          // percentual sobre o KM previsto (tolerância de KM_TOLERANCE_PCT%).
+          let kmStatus: KmStatus = 'OK'
+          if (hasKmStatusText) {
+            const raw = String(row[idx.kmStatus] || '').trim()
+            kmStatus = (['OK', 'Rodado a mais', 'Rodado a menos'].includes(raw) ? raw : 'OK') as KmStatus
+          } else if (kmPrevistoTotal > 0) {
+            const pct = (kmDiferenca / kmPrevistoTotal) * 100
+            if (pct > KM_TOLERANCE_PCT) kmStatus = 'Rodado a mais'
+            else if (pct < -KM_TOLERANCE_PCT) kmStatus = 'Rodado a menos'
+          }
+
+          // Litros: null quando a coluna não existe no export => contra leite N/A
+          const litrosColetados = idx.litrosColetados !== -1 ? (Number(row[idx.litrosColetados]) || 0) : null
+          const litrosDescarregados = idx.litrosDescarregados !== -1 ? (Number(row[idx.litrosDescarregados]) || 0) : null
+
           routes.push({
             id: `${celula}-${roteiro}-${i}-${uploadId}`,
             celula,
             planta: currentPlanta || `Planta C${celula}`,
             roteiro,
-            status: (['Encerrado', 'Com Pendências', 'Em execução', 'Previsto', 'Regresso'].includes(status) 
-              ? status 
+            status: (['Encerrado', 'Com Pendências', 'Em execução', 'Previsto', 'Regresso'].includes(status)
+              ? status
               : 'Previsto') as RouteStatus,
-            eventos: '', 
+            eventos: idx.eventos !== -1 ? String(row[idx.eventos] || '').trim() : '',
             placa,
-            kmStatus: (['OK', 'Rodado a mais', 'Rodado a menos'].includes(String(row[idx.kmStatus])) 
-              ? row[idx.kmStatus] 
-              : 'OK') as KmStatus,
+            kmStatus,
             dataInicioManual: String(rawInicio || ''),
             dataTerminoManual: String(rawTermino || ''),
             inicio: String(rawInicio || ''),
             termino: String(rawTermino || ''),
             observacao: idx.observacao !== -1 ? String(row[idx.observacao] || '').trim() : '',
-            litrosColetados: idx.litrosColetados !== -1 ? (Number(row[idx.litrosColetados]) || 0) : 0,
-            litrosDescarregados: idx.litrosDescarregados !== -1 ? (Number(row[idx.litrosDescarregados]) || 0) : 0,
-            kmPrevisto: 0,
-            kmDiferenca: 0,
-            kmPrevistoTotal: 0,
-            kmRodadoTotal: 0,
-            kmRodado: 0,
+            litrosColetados,
+            litrosDescarregados,
+            kmPrevisto: kmPrevistoTotal,
+            kmDiferenca,
+            kmPrevistoTotal,
+            kmRodadoTotal,
+            kmRodado: kmRodadoTotal,
             kmFechamento: 0,
             kmRecebido: 0,
             dataRota: dataRotaISO,

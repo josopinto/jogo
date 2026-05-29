@@ -19,8 +19,8 @@ export interface Route {
   inicio: string | null
   termino: string | null
   observacao: string
-  litrosColetados: number
-  litrosDescarregados: number
+  litrosColetados: number | null
+  litrosDescarregados: number | null
   kmPrevisto: number
   kmDiferenca: number
   kmPrevistoTotal: number

@@ -97,6 +97,8 @@ export function isPendente(route: Route, referenceDateISO: string | null): boole
 }
 
 export function isSemContraLeite(route: Route): boolean {
+  // Quando o export do KMM não traz litros, o valor é null => indicador N/A (não conta)
+  if (route.litrosDescarregados === null || route.litrosDescarregados === undefined) return false
   return Number(route.litrosDescarregados) === 0
 }
 

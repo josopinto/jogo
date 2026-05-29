@@ -13,7 +13,7 @@ interface TabHeaderProps {
 export function TabHeader({ title, description, showGlobalKpis = true }: TabHeaderProps) {
   const { routes, lastUpload, uploadSummary } = useCCO()
   
-  const summary = useMemo(() => calculateGlobalSummary(routes), [routes])
+  const summary = useMemo(() => calculateGlobalSummary(routes, null), [routes])
   
   const totalRoutes = uploadSummary.cell1 + uploadSummary.cell2 + uploadSummary.cell3
   const pendentesTotal = summary.pendencias + summary.emExecucao + summary.previsto + summary.regresso

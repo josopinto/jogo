@@ -385,8 +385,8 @@ export function OperationalDetailTab() {
                       {r.kmStatus}
                     </span>
                   </td>
-                  <td className="px-md text-right text-on-surface-variant font-medium">{formatNumber(r.litrosColetados)}</td>
-                  <td className="px-md text-right font-black text-on-surface">{formatNumber(r.litrosDescarregados)}</td>
+                  <td className="px-md text-right text-on-surface-variant font-medium">{r.litrosColetados === null ? '—' : formatNumber(r.litrosColetados)}</td>
+                  <td className="px-md text-right font-black text-on-surface">{r.litrosDescarregados === null ? '—' : formatNumber(r.litrosDescarregados)}</td>
                   <td className="px-md font-mono text-on-surface-variant font-bold">{r.placa}</td>
                   <td className="px-md max-w-[200px] truncate text-[10px] text-on-surface-variant italic" title={r.observacao}>{r.observacao || '-'}</td>
                 </tr>
