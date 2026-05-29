@@ -216,9 +216,19 @@ export function CellDetailTab() {
               </div>
             </Card>
 
-            <div className="bg-surface-container-low rounded-xl p-lg flex items-center justify-center border border-dashed border-outline-variant/50 opacity-40">
-              <span className="font-body-sm text-outline uppercase font-bold tracking-tighter">Espaço Reservado</span>
-            </div>
+            {/* % Encerradas */}
+            <Card className="bg-surface-container-lowest rounded-xl shadow-surface p-lg flex flex-col border-b-4 border-b-success border-x border-t border-outline-variant/30">
+              <div className="flex items-center gap-2 mb-4 text-success">
+                <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                <h4 className="font-body-md text-success font-semibold">% Encerradas</h4>
+              </div>
+              <div className="mt-auto">
+                <span className={`font-display-lg text-display-lg block leading-none ${activeCellSummary.percentualEncerramento >= 95 ? 'text-success' : activeCellSummary.percentualEncerramento >= 90 ? 'text-warning' : 'text-error'}`}>
+                  {formatPercentage(activeCellSummary.percentualEncerramento)}
+                </span>
+                <span className="font-body-sm text-on-surface-variant mt-1 block tracking-tighter uppercase font-bold text-[9px]">Rotas encerradas</span>
+              </div>
+            </Card>
           </div>
 
           {/* Ranking Vertical Chart */}
