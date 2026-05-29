@@ -14,6 +14,7 @@ interface CCOContextType {
   uploadSummary: { cell1: number; cell2: number; cell3: number }
   addRoutes: (newRoutes: Route[], celula: CellNumber, periodStart: string, periodEnd: string) => void
   clearCellRoutes: (celula: CellNumber) => void
+  resetAll: () => void
   setLastUpload: (date: string) => void
   setReferenceDate: (date: string | null) => void
   setAuditPeriod: (start: string | null, end: string | null) => void
@@ -60,6 +61,10 @@ export function CCOProvider({ children }: { children: ReactNode }) {
     }))
   }, [])
 
+  const resetAll = useCallback(() => {
+    setState(INITIAL_STATE)
+  }, [])
+
   const setLastUpload = useCallback((date: string) => {
     setState(prev => ({ ...prev, lastUpload: date }))
   }, [])
@@ -99,6 +104,7 @@ export function CCOProvider({ children }: { children: ReactNode }) {
         uploadSummary: state.uploadSummary,
         addRoutes,
         clearCellRoutes,
+        resetAll,
         setLastUpload,
         setReferenceDate,
         setAuditPeriod,

@@ -207,7 +207,7 @@ function parseExcelFile(
 }
 
 export function UploadTab() {
-  const { addRoutes, setLastUpload, auditPeriod, setAuditPeriod } = useCCO()
+  const { addRoutes, setLastUpload, auditPeriod, setAuditPeriod, resetAll } = useCCO()
   
   const [selectedCell, setSelectedCell] = useState<CellNumber>(1)
   
@@ -276,14 +276,37 @@ export function UploadTab() {
     setProcessing(prev => ({ ...prev, isProcessing: false }))
   }, [files, selectedCell, auditPeriod, addRoutes, setLastUpload])
 
+  const handleReset = useCallback(() => {
+    if (!window.confirm('Isso vai remover TODOS os dados importados (todas as células) e limpar o período selecionado. Deseja continuar?')) {
+      return
+    }
+    resetAll()
+    setFiles({ cell1: null, cell2: null, cell3: null })
+    setProcessing({
+      isProcessing: false,
+      cell1: { status: 'idle', count: 0, plants: 0, alerts: 0 },
+      cell2: { status: 'idle', count: 0, plants: 0, alerts: 0 },
+      cell3: { status: 'idle', count: 0, plants: 0, alerts: 0 }
+    })
+  }, [resetAll])
+
   const currentProcessing = processing[`cell${selectedCell}` as keyof Omit<ProcessingStatus, 'isProcessing'>]
   const currentFile = files[`cell${selectedCell}` as keyof UploadState]
 
   return (
     <div className="space-y-xl">
-      <div className="mb-lg">
-        <h2 className="font-display-lg text-display-lg text-on-surface tracking-tight">Importação de Dados</h2>
-        <p className="font-body-lg text-body-lg text-on-surface-variant mt-sm">Importe os dados operacionais do KMM para análise e consolidação por célula.</p>
+      <div className="mb-lg flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h2 className="font-display-lg text-display-lg text-on-surface tracking-tight">Importação de Dados</h2>
+          <p className="font-body-lg text-body-lg text-on-surface-variant mt-sm">Importe os dados operacionais do KMM para análise e consolidação por célula.</p>
+        </div>
+        <Button
+          onClick={handleReset}
+          variant="outline"
+          className="border-error/40 text-error hover:bg-error hover:text-on-error shrink-0"
+        >
+          <span className="material-symbols-outlined mr-2 text-[18px]">delete_sweep</span> Limpar dados
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
