@@ -207,7 +207,7 @@ function parseExcelFile(
 }
 
 export function UploadTab() {
-  const { addRoutes, setLastUpload, referenceDate, setReferenceDate, auditPeriod, setAuditPeriod } = useCCO()
+  const { addRoutes, setLastUpload, auditPeriod, setAuditPeriod } = useCCO()
   
   const [selectedCell, setSelectedCell] = useState<CellNumber>(1)
   
@@ -233,7 +233,7 @@ export function UploadTab() {
 
   const handleProcess = useCallback(async () => {
     if (!auditPeriod.start || !auditPeriod.end) {
-      alert('Por favor, preencha o Período de Auditoria.')
+      alert('Por favor, preencha a Data de Início e a Data de Término.')
       return
     }
 
@@ -254,10 +254,6 @@ export function UploadTab() {
     try {
       const result = await parseExcelFile(file, selectedCell, auditPeriod.start, auditPeriod.end)
       addRoutes(result.routes, selectedCell, auditPeriod.start, auditPeriod.end)
-      
-      if (!referenceDate) {
-        setReferenceDate(auditPeriod.start)
-      }
 
       setProcessing(prev => ({
         ...prev,
@@ -278,7 +274,7 @@ export function UploadTab() {
     
     setLastUpload(new Date().toLocaleString('pt-BR'))
     setProcessing(prev => ({ ...prev, isProcessing: false }))
-  }, [files, selectedCell, auditPeriod, addRoutes, setLastUpload, referenceDate, setReferenceDate])
+  }, [files, selectedCell, auditPeriod, addRoutes, setLastUpload])
 
   const currentProcessing = processing[`cell${selectedCell}` as keyof Omit<ProcessingStatus, 'isProcessing'>]
   const currentFile = files[`cell${selectedCell}` as keyof UploadState]
@@ -286,8 +282,8 @@ export function UploadTab() {
   return (
     <div className="space-y-xl">
       <div className="mb-lg">
-        <h2 className="font-display-lg text-display-lg text-on-surface tracking-tight">Data Import</h2>
-        <p className="font-body-lg text-body-lg text-on-surface-variant mt-sm">Upload KMM operational data for cell analysis and integration.</p>
+        <h2 className="font-display-lg text-display-lg text-on-surface tracking-tight">Importação de Dados</h2>
+        <p className="font-body-lg text-body-lg text-on-surface-variant mt-sm">Importe os dados operacionais do KMM para análise e consolidação por célula.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
@@ -295,43 +291,40 @@ export function UploadTab() {
         <div className="lg:col-span-2 flex flex-col gap-gutter">
           {/* Parameters Card */}
           <section className="executive-card p-xl">
-            <h3 className="font-headline-md text-headline-md text-on-surface mb-md border-b border-outline-variant/30 pb-sm">Import Parameters</h3>
+            <h3 className="font-headline-md text-headline-md text-on-surface mb-md border-b border-outline-variant/30 pb-sm">Parâmetros de Importação</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
               <div className="space-y-xs">
-                <label className="block font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Operational Cell</label>
+                <label className="block font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Célula Operacional</label>
                 <Select value={selectedCell.toString()} onValueChange={(v) => setSelectedCell(Number(v) as CellNumber)}>
                   <SelectTrigger className="w-full h-11 bg-surface border-outline-variant focus:ring-primary focus:border-primary text-body-md">
-                    <SelectValue placeholder="Select Cell" />
+                    <SelectValue placeholder="Selecione a célula" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">Cell 1 - Sudeste / Sul</SelectItem>
-                    <SelectItem value="2">Cell 2 - Nordeste</SelectItem>
-                    <SelectItem value="3">Cell 3 - Centro-Oeste</SelectItem>
+                    <SelectItem value="1">Célula 1 - Sudeste / Sul</SelectItem>
+                    <SelectItem value="2">Célula 2 - Nordeste</SelectItem>
+                    <SelectItem value="3">Célula 3 - Centro-Oeste</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-xs">
-                <label className="block font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Audit Period Start</label>
-                <Input 
-                  type="date" 
-                  value={auditPeriod.start || ''} 
+                <label className="block font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Data de Início</label>
+                <Input
+                  type="date"
+                  value={auditPeriod.start || ''}
                   onChange={e => setAuditPeriod(e.target.value, auditPeriod.end)}
                   className="h-11 bg-surface border-outline-variant focus:border-primary text-body-md"
                 />
               </div>
               <div className="space-y-xs">
-                <label className="block font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Reference Date (Return)</label>
-                <Input 
-                  type="date" 
-                  value={referenceDate || ''} 
-                  onChange={e => setReferenceDate(e.target.value)}
+                <label className="block font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Data de Término</label>
+                <Input
+                  type="date"
+                  value={auditPeriod.end || ''}
+                  onChange={e => setAuditPeriod(auditPeriod.start, e.target.value)}
                   className="h-11 bg-surface border-outline-variant focus:border-primary text-body-md"
                 />
               </div>
             </div>
-            <p className="text-[10px] text-on-surface-variant mt-4 italic">
-              * Auditoria Fim sera automaticamente sincronizada se nao houver alteracao no Detalhamento.
-            </p>
           </section>
 
           {/* Dropzone Card */}
@@ -343,13 +336,13 @@ export function UploadTab() {
             <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                <span className="material-symbols-outlined text-4xl text-primary">upload_file</span>
             </div>
-            <h4 className="font-headline-md text-headline-md text-on-surface mb-2">Drag and drop Excel file here</h4>
+            <h4 className="font-headline-md text-headline-md text-on-surface mb-2">Arraste e solte o arquivo Excel aqui</h4>
             <p className="font-body-md text-body-md text-on-surface-variant mb-8 text-center max-w-md">
-              Supported formats: .xlsx, .xls, .csv. Maximum file size: 50MB. <br/>
-              Uploading for <strong className="text-primary">Cell {selectedCell}</strong>.
+              Formatos suportados: .xlsx, .xls. <br/>
+              Importando para a <strong className="text-primary">Célula {selectedCell}</strong>.
             </p>
             <Button variant="outline" className="h-11 px-8 border-primary text-primary font-bold hover:bg-primary hover:text-on-primary">
-               Browse Files
+               Selecionar Arquivo
             </Button>
             <input
               id={`file-${selectedCell}`}
@@ -365,11 +358,11 @@ export function UploadTab() {
         <div className="lg:col-span-1">
           <Card className="executive-card p-xl h-full flex flex-col border border-outline-variant/50">
             <div className="flex items-center justify-between border-b border-outline-variant/30 pb-sm mb-md">
-              <h3 className="font-headline-md text-headline-md text-on-surface">Import Diagnosis</h3>
+              <h3 className="font-headline-md text-headline-md text-on-surface">Diagnóstico da Importação</h3>
               <span className={`px-3 py-1 rounded-full font-label-md text-label-md font-bold uppercase tracking-widest
                 ${currentProcessing.status === 'done' ? 'bg-success/10 text-success' : 'bg-surface-container-highest text-on-surface-variant'}
               `}>
-                {currentProcessing.status === 'done' ? 'Ready' : currentProcessing.status === 'processing' ? 'Active' : 'Pending'}
+                {currentProcessing.status === 'done' ? 'Concluído' : currentProcessing.status === 'processing' ? 'Processando' : 'Aguardando'}
               </span>
             </div>
 
@@ -379,35 +372,35 @@ export function UploadTab() {
                   <span className="material-symbols-outlined text-3xl">description</span>
                   <div className="overflow-hidden">
                     <p className="font-label-lg text-label-lg text-on-surface truncate font-bold">{currentFile.name}</p>
-                    <p className="font-body-sm text-[10px] text-on-surface-variant">{(currentFile.size / 1024 / 1024).toFixed(2)} MB • File selected</p>
+                    <p className="font-body-sm text-[10px] text-on-surface-variant">{(currentFile.size / 1024 / 1024).toFixed(2)} MB • Arquivo selecionado</p>
                   </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-10 text-center border border-dashed border-outline-variant/50 rounded-xl bg-surface/50">
                    <span className="material-symbols-outlined text-outline text-3xl mb-2">cloud_off</span>
-                   <p className="text-[11px] text-on-surface-variant font-bold uppercase">No file selected for Cell {selectedCell}</p>
+                   <p className="text-[11px] text-on-surface-variant font-bold uppercase">Nenhum arquivo selecionado para a Célula {selectedCell}</p>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-gutter">
                 <div className="bg-surface-container-low p-md rounded-xl border border-outline-variant/20 shadow-sm">
-                  <p className="font-label-md text-[10px] text-on-surface-variant uppercase font-bold">Routes Found</p>
+                  <p className="font-label-md text-[10px] text-on-surface-variant uppercase font-bold">Rotas Encontradas</p>
                   <p className="font-headline-md text-headline-md text-on-surface mt-1 leading-none">{formatNumber(currentProcessing.count)}</p>
                 </div>
                 <div className="bg-surface-container-low p-md rounded-xl border border-outline-variant/20 shadow-sm">
-                  <p className="font-label-md text-[10px] text-on-surface-variant uppercase font-bold">Plants Mapped</p>
+                  <p className="font-label-md text-[10px] text-on-surface-variant uppercase font-bold">Plantas Mapeadas</p>
                   <p className="font-headline-md text-headline-md text-on-surface mt-1 leading-none">{currentProcessing.plants}</p>
                 </div>
                 <div className={`p-md rounded-xl border shadow-sm col-span-2
                   ${currentProcessing.alerts > 0 ? 'bg-error-container/20 border-error/50' : 'bg-surface-container-low border-outline-variant/20'}
                 `}>
                   <p className={`font-label-md text-[10px] uppercase font-bold ${currentProcessing.alerts > 0 ? 'text-error' : 'text-on-surface-variant'}`}>
-                    Data Alerts
+                    Alertas de Dados
                   </p>
                   <p className={`font-headline-md text-headline-md mt-1 leading-none ${currentProcessing.alerts > 0 ? 'text-error' : 'text-on-surface'}`}>
-                    {currentProcessing.alerts} {currentProcessing.alerts === 1 ? 'Inconsistency' : 'Inconsistencies'}
+                    {currentProcessing.alerts} {currentProcessing.alerts === 1 ? 'Inconsistência' : 'Inconsistências'}
                   </p>
-                  {currentProcessing.alerts > 0 && <p className="text-[9px] text-error mt-1 italic">* Missing or malformed route dates detected.</p>}
+                  {currentProcessing.alerts > 0 && <p className="text-[9px] text-error mt-1 italic">* Rotas com data de início/término ausente ou inválida.</p>}
                 </div>
               </div>
 
@@ -417,7 +410,7 @@ export function UploadTab() {
                   disabled={!currentFile || processing.isProcessing}
                   className="w-full bg-primary text-on-primary h-12 rounded-xl font-bold uppercase tracking-widest shadow-md hover:bg-primary-container transition-all active:scale-95"
                 >
-                  {processing.isProcessing ? 'Processing...' : 'Confirm & Process Data'}
+                  {processing.isProcessing ? 'Processando...' : 'Confirmar e Processar'}
                 </Button>
               </div>
             </div>
@@ -431,9 +424,8 @@ export function UploadTab() {
          <div className="space-y-1">
             <h4 className="font-bold text-on-surface text-sm uppercase tracking-wider">Protocolo de Consolidação Operacional</h4>
             <p className="text-xs text-on-surface-variant leading-relaxed">
-               Ao processar os arquivos, o sistema tagueará automaticamente cada rota com o período de auditoria selecionado. 
-               Se você importar um novo arquivo para a mesma célula e mesmo período, os dados anteriores serão <strong className="text-primary">substituídos</strong> para evitar duplicidade. 
-               A data de referência para Regresso Antigo é fundamental para o cálculo correto dos indicadores críticos.
+               Ao processar os arquivos, o sistema vincula automaticamente cada rota ao período selecionado (Data de Início e Data de Término).
+               Se você importar um novo arquivo para a mesma célula e mesmo período, os dados anteriores serão <strong className="text-primary">substituídos</strong> para evitar duplicidade.
             </p>
          </div>
       </section>

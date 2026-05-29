@@ -17,8 +17,8 @@ export function ActionPlanTab() {
     {
       id: 'ACT-092',
       auditoria: '2023-10-20',
-      acao: 'Recalibrate Cell Alpha route variance algorithm',
-      responsavel: 'J. Doe (Ops)',
+      acao: 'Recalibrar algoritmo de variação de rota da Célula 1',
+      responsavel: 'J. Doe (Operações)',
       celula: 1,
       planta: 'Guarulhos - SP',
       prioridade: 'Alta',
@@ -35,8 +35,8 @@ export function ActionPlanTab() {
     {
       id: 'ACT-095',
       auditoria: '2023-10-24',
-      acao: 'Update missing columns mapping in KMM template',
-      responsavel: 'M. Silva (IT)',
+      acao: 'Atualizar mapeamento de colunas ausentes no modelo do KMM',
+      responsavel: 'M. Silva (TI)',
       celula: 2,
       planta: 'RJ - Matriz',
       prioridade: 'Media',
@@ -48,13 +48,13 @@ export function ActionPlanTab() {
       impactoEsperado: 'Confiabilidade total na importação',
       observacao: '',
       evidencia: '',
-      proximoPasso: 'Testar com arquivo Cell 2'
+      proximoPasso: 'Testar com arquivo da Célula 2'
     },
     {
       id: 'ACT-098',
       auditoria: '2023-10-24',
-      acao: 'Review Q2 audit exceptions report',
-      responsavel: 'A. Costa (Audit)',
+      acao: 'Revisar relatório de exceções da auditoria do 2º trimestre',
+      responsavel: 'A. Costa (Auditoria)',
       celula: 'Todas',
       planta: 'Multi-Planta',
       prioridade: 'Baixa',
@@ -63,7 +63,7 @@ export function ActionPlanTab() {
       dataCriacao: '2023-10-24',
       dataConclusao: null,
       motivo: 'Fechamento trimestral',
-      impactoEsperado: 'Compliance 100%',
+      impactoEsperado: 'Conformidade 100%',
       observacao: '',
       evidencia: '',
       proximoPasso: 'Coletar assinaturas'
@@ -100,11 +100,11 @@ export function ActionPlanTab() {
     <div className="space-y-xl">
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="font-display-lg text-display-lg text-on-surface tracking-tight">Action Plan Matrix</h2>
-          <p className="font-body-lg text-body-lg text-on-surface-variant mt-sm">Strategic task management and operational remediation.</p>
+          <h2 className="font-display-lg text-display-lg text-on-surface tracking-tight">Matriz de Plano de Ação</h2>
+          <p className="font-body-lg text-body-lg text-on-surface-variant mt-sm">Gestão estratégica de tarefas e correção operacional.</p>
         </div>
         <Button className="bg-primary text-on-primary px-6 h-11 rounded-xl font-bold shadow-md hover:bg-primary-container transition-all flex items-center gap-2">
-          <span className="material-symbols-outlined text-sm">add</span> New Action Item
+          <span className="material-symbols-outlined text-sm">add</span> Nova Ação
         </Button>
       </div>
 
@@ -115,7 +115,7 @@ export function ActionPlanTab() {
             <span className="material-symbols-outlined text-3xl">warning</span>
           </div>
           <div>
-            <p className="font-label-md text-[10px] text-on-surface-variant uppercase font-bold tracking-widest leading-none mb-1">Delayed Items</p>
+            <p className="font-label-md text-[10px] text-on-surface-variant uppercase font-bold tracking-widest leading-none mb-1">Itens Atrasados</p>
             <p className="font-data-display text-4xl font-bold text-on-surface leading-none">{stats.delayed}</p>
           </div>
         </Card>
@@ -125,7 +125,7 @@ export function ActionPlanTab() {
             <span className="material-symbols-outlined text-3xl">pending_actions</span>
           </div>
           <div>
-            <p className="font-label-md text-[10px] text-on-surface-variant uppercase font-bold tracking-widest leading-none mb-1">In Progress</p>
+            <p className="font-label-md text-[10px] text-on-surface-variant uppercase font-bold tracking-widest leading-none mb-1">Em Andamento</p>
             <p className="font-data-display text-4xl font-bold text-on-surface leading-none">{stats.inProgress}</p>
           </div>
         </Card>
@@ -135,7 +135,7 @@ export function ActionPlanTab() {
             <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
           </div>
           <div>
-            <p className="font-label-md text-[10px] text-on-surface-variant uppercase font-bold tracking-widest leading-none mb-1">Completed (Q3)</p>
+            <p className="font-label-md text-[10px] text-on-surface-variant uppercase font-bold tracking-widest leading-none mb-1">Concluídos (Trim.)</p>
             <p className="font-data-display text-4xl font-bold text-on-surface leading-none">{stats.completed}</p>
           </div>
         </Card>
@@ -146,11 +146,11 @@ export function ActionPlanTab() {
         <div className="px-xl py-md border-b border-outline-variant/20 flex justify-between items-center bg-surface-bright/30">
           <h3 className="font-headline-md text-headline-md text-on-surface flex items-center gap-sm">
              <span className="material-symbols-outlined text-secondary">assignment_turned_in</span>
-             Active Remediation Tasks
+             Tarefas de Correção Ativas
           </h3>
           <div className="flex gap-4">
-            <button className="text-secondary font-bold text-xs hover:text-primary uppercase tracking-widest">Filter</button>
-            <button className="text-secondary font-bold text-xs hover:text-primary uppercase tracking-widest">Export</button>
+            <button className="text-secondary font-bold text-xs hover:text-primary uppercase tracking-widest">Filtrar</button>
+            <button className="text-secondary font-bold text-xs hover:text-primary uppercase tracking-widest">Exportar</button>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -158,10 +158,10 @@ export function ActionPlanTab() {
             <TableHeader>
               <TableRow className="bg-surface-container-low border-b border-outline-variant/20 h-[52px]">
                 <TableHead className="px-xl font-label-lg text-label-lg text-on-surface-variant font-bold uppercase text-[10px]">ID</TableHead>
-                <TableHead className="px-md font-label-lg text-label-lg text-on-surface-variant font-bold uppercase text-[10px]">Priority</TableHead>
-                <TableHead className="px-md font-label-lg text-label-lg text-on-surface-variant font-bold uppercase text-[10px] w-1/3">Task Description</TableHead>
-                <TableHead className="px-md font-label-lg text-label-lg text-on-surface-variant font-bold uppercase text-[10px]">Responsible</TableHead>
-                <TableHead className="px-md font-label-lg text-label-lg text-on-surface-variant font-bold uppercase text-[10px]">Due Date</TableHead>
+                <TableHead className="px-md font-label-lg text-label-lg text-on-surface-variant font-bold uppercase text-[10px]">Prioridade</TableHead>
+                <TableHead className="px-md font-label-lg text-label-lg text-on-surface-variant font-bold uppercase text-[10px] w-1/3">Descrição da Tarefa</TableHead>
+                <TableHead className="px-md font-label-lg text-label-lg text-on-surface-variant font-bold uppercase text-[10px]">Responsável</TableHead>
+                <TableHead className="px-md font-label-lg text-label-lg text-on-surface-variant font-bold uppercase text-[10px]">Prazo</TableHead>
                 <TableHead className="px-xl font-label-lg text-label-lg text-on-surface-variant font-bold uppercase text-[10px]">Status</TableHead>
               </TableRow>
             </TableHeader>

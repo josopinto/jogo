@@ -62,7 +62,7 @@ export function SummaryTab() {
     const mostPendingCell = [...validCells].sort((a, b) => b.pendencias - a.pendencias)[0]
     const top3Critical = worstOperations.slice(0, 3).map(op => op.planta).join(', ')
     
-    return `Foram analisadas ${formatNumber(summary.totalRotas)} rotas no período de auditoria selecionado. A Célula com maior volume de pendências foi a Célula ${mostPendingCell.celula}. As operações mais críticas são ${top3Critical}. Os principais pontos de atenção são sem contra leite, rotas pendentes e KM Status incorreto.`
+    return `Foram analisadas ${formatNumber(summary.totalRotas)} rotas no período selecionado. A Célula com maior volume de pendências foi a Célula ${mostPendingCell.celula}. As operações mais críticas são ${top3Critical}. Os principais pontos de atenção são sem contra leite, rotas pendentes e KM Status incorreto.`
   }, [summary, worstOperations])
 
   const isEmpty = routes.length === 0
@@ -87,9 +87,9 @@ export function SummaryTab() {
     <div className="space-y-gutter">
       {/* Cabeçalho de Configuração */}
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between bg-surface-container-lowest p-lg rounded-xl border border-outline-variant/30 shadow-surface">
-        <div className="grid gap-gutter md:grid-cols-3 flex-1">
+        <div className="grid gap-gutter md:grid-cols-2 flex-1">
           <div className="space-y-xs">
-            <label className="text-[10px] font-bold uppercase text-on-surface-variant tracking-wider">Período de Auditoria (De/Até)</label>
+            <label className="text-[10px] font-bold uppercase text-on-surface-variant tracking-wider">Período (Início / Término)</label>
             <div className="flex gap-2">
               <Input 
                 type="date" 
@@ -120,10 +120,6 @@ export function SummaryTab() {
             </Select>
           </div>
 
-          <div className="space-y-xs text-right hidden md:block">
-             <p className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider">Data de Referência Atual:</p>
-             <p className="text-lg font-bold text-primary font-mono">{formatDateBR(referenceDate)}</p>
-          </div>
         </div>
       </div>
 
@@ -237,8 +233,8 @@ export function SummaryTab() {
               <span className="material-symbols-outlined text-[16px]">info</span> Ponto de Atenção
             </h4>
             <p className="font-body-md text-sm text-primary-fixed-dim leading-relaxed">
-              Indicadores marcados com (*) respeitam o escopo: <strong className="text-on-primary capitalize">{indicatorScope === 'pending' ? 'Pendentes' : indicatorScope === 'closed' ? 'Encerradas' : 'Todas'}</strong>. 
-              As pendências de regresso antigo são calculadas baseadas na data de referência <strong className="text-on-primary">{formatDateBR(referenceDate)}</strong>.
+              Indicadores marcados com (*) respeitam o escopo: <strong className="text-on-primary capitalize">{indicatorScope === 'pending' ? 'Pendentes' : indicatorScope === 'closed' ? 'Encerradas' : 'Todas'}</strong>.
+              As pendências de regresso antigo são calculadas com base na Data de Término <strong className="text-on-primary">{formatDateBR(referenceDate)}</strong>.
             </p>
           </div>
         </div>
@@ -252,7 +248,7 @@ export function SummaryTab() {
               <span className="material-symbols-outlined text-secondary">table_chart</span>
               Resumo por Célula Importada
             </h3>
-            <span className="text-[10px] font-mono text-on-surface-variant font-bold uppercase tracking-widest pr-4 hidden sm:block">Consolidado da Auditoria</span>
+            <span className="text-[10px] font-mono text-on-surface-variant font-bold uppercase tracking-widest pr-4 hidden sm:block">Consolidado do Período</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">

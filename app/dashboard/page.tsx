@@ -29,7 +29,7 @@ const mainTabs: Tab[] = [
   { id: 'summary', label: 'Resumo Executivo', icon: 'dashboard' },
   { id: 'cell', label: 'Análise por Célula', icon: 'analytics' },
   { id: 'executive', label: 'Visão Geral', icon: 'settings_suggest' },
-  { id: 'upload', label: 'Importação / Upload', icon: 'cloud_upload' },
+  { id: 'upload', label: 'Importação', icon: 'cloud_upload' },
 ]
 
 function DashboardContent() {
@@ -138,7 +138,7 @@ function DashboardContent() {
           </div>
           
           <div className="hidden md:flex flex-col">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1">Auditoria Ativa</span>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1">Período Selecionado</span>
             <span className="text-sm font-mono font-bold text-primary">
               {formatDateBR(auditPeriod.start)} até {formatDateBR(auditPeriod.end)}
             </span>

@@ -100,7 +100,7 @@ export function CellDetailTab() {
           <p className="font-body-lg text-body-lg text-on-surface-variant">Visão operacional detalhada por agrupamento logístico.</p>
         </div>
         <div className="hidden md:block text-right">
-           <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Período Auditoria</span>
+           <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Período</span>
            <p className="text-sm font-mono font-bold text-primary">{formatDateBR(auditPeriod.start)} - {formatDateBR(auditPeriod.end)}</p>
         </div>
       </div>

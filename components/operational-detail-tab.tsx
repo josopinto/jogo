@@ -129,7 +129,7 @@ export function OperationalDetailTab() {
   // --- HANDLERS ---
 
   const handleExportCSV = () => {
-    const headers = ['Célula', 'Planta', 'Roteiro', 'Data Rota', 'Status', 'KM Status', 'Litros Col.', 'Litros Des.', 'Observação', 'Placa', 'Período Auditoria']
+    const headers = ['Célula', 'Planta', 'Roteiro', 'Data Rota', 'Status', 'KM Status', 'Litros Col.', 'Litros Des.', 'Observação', 'Placa', 'Período']
     const rows = filteredRoutes.map(r => [
       r.celula,
       `"${r.planta}"`,
@@ -187,7 +187,7 @@ export function OperationalDetailTab() {
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="font-display-lg text-display-lg text-on-surface tracking-tight">Gestão de Operações</h2>
-          <p className="font-body-lg text-body-lg text-on-surface-variant">Detalhamento e filtros avançados para auditoria operacional.</p>
+          <p className="font-body-lg text-body-lg text-on-surface-variant">Detalhamento e filtros avançados para análise operacional.</p>
         </div>
         <Button onClick={handleExportCSV} variant="outline" className="border-outline-variant text-secondary hover:text-primary">
           <span className="material-symbols-outlined mr-2">download</span> Exportar CSV
@@ -213,7 +213,7 @@ export function OperationalDetailTab() {
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-md">
           {/* Período de Auditoria */}
           <div className="flex flex-col gap-xs">
-            <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-tighter font-bold text-[10px]">Auditoria Início</label>
+            <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-tighter font-bold text-[10px]">Data de Início</label>
             <Input 
               type="date" 
               value={auditPeriod.start || ''} 
@@ -222,7 +222,7 @@ export function OperationalDetailTab() {
             />
           </div>
           <div className="flex flex-col gap-xs">
-            <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-tighter font-bold text-[10px]">Auditoria Fim</label>
+            <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-tighter font-bold text-[10px]">Data de Término</label>
             <Input 
               type="date" 
               value={auditPeriod.end || ''} 

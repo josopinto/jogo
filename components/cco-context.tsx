@@ -69,13 +69,19 @@ export function CCOProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const setAuditPeriod = useCallback((start: string | null, end: string | null) => {
-    setState(prev => ({ 
-      ...prev, 
-      auditPeriod: { 
-        start: normalizeDateToISO(start), 
-        end: normalizeDateToISO(end) 
-      } 
-    }))
+    setState(prev => {
+      const endISO = normalizeDateToISO(end)
+      return {
+        ...prev,
+        auditPeriod: {
+          start: normalizeDateToISO(start),
+          end: endISO
+        },
+        // A data de referência (usada no cálculo de Regresso Antigo) acompanha
+        // automaticamente a Data de Término, sem campo separado na interface.
+        referenceDate: endISO ?? prev.referenceDate
+      }
+    })
   }, [])
 
   const setIndicatorScope = useCallback((scope: FilterScope) => {

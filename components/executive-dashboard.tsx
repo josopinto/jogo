@@ -123,7 +123,7 @@ export function ExecutiveDashboard() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-surface-container-lowest p-lg rounded-xl border border-outline-variant/30 shadow-surface">
          <div className="flex flex-wrap gap-gutter items-center">
             <div className="space-y-xs">
-              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Período Auditoria</span>
+              <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Período (Início / Término)</span>
               <div className="flex gap-2">
                 <Input type="date" value={auditPeriod.start || ''} onChange={e => setAuditPeriod(e.target.value, auditPeriod.end)} className="h-9 w-36 text-xs bg-surface border-outline-variant" />
                 <Input type="date" value={auditPeriod.end || ''} onChange={e => setAuditPeriod(auditPeriod.start, e.target.value)} className="h-9 w-36 text-xs bg-surface border-outline-variant" />
@@ -144,8 +144,8 @@ export function ExecutiveDashboard() {
             </div>
          </div>
          <div className="text-right border-l border-outline-variant/30 pl-lg hidden lg:block">
-            <span className="text-[10px] font-bold text-on-surface-variant uppercase block tracking-widest">Referência Auditoria</span>
-            <span className="text-sm font-bold text-primary font-mono">{formatDateBR(referenceDate)}</span>
+            <span className="text-[10px] font-bold text-on-surface-variant uppercase block tracking-widest">Período Selecionado</span>
+            <span className="text-sm font-bold text-primary font-mono">{formatDateBR(auditPeriod.start)} a {formatDateBR(auditPeriod.end)}</span>
          </div>
       </div>
 
